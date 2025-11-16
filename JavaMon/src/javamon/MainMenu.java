@@ -15,6 +15,13 @@ public class MainMenu extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setResizable(false);
+        
+
+        // Set custom icon
+        Image icon = new ImageIcon(getClass().getResource("/javamon/assets/icon.png")).getImage();
+        setIconImage(icon);
+
+        setVisible(true);
 
         // Play background music
         Clip bgClip = playBackgroundMusic("/javamon/assets/bgsound.wav");
@@ -38,7 +45,7 @@ public class MainMenu extends JFrame {
         ImageIcon scaledStartIcon = new ImageIcon(scaledStartImg);
 
         JButton startButton = new JButton(scaledStartIcon);
-        startButton.setBounds(300, 420, 200, 50);
+        startButton.setBounds(102, 459, 155, 53);
         startButton.setBorderPainted(false);
         startButton.setContentAreaFilled(false);
         startButton.setFocusPainted(false);
@@ -58,7 +65,7 @@ public class MainMenu extends JFrame {
         ImageIcon scaledExitIcon = new ImageIcon(scaledExitImg);
 
         JButton exitButton = new JButton(scaledExitIcon);
-        exitButton.setBounds(300, 470, 200, 50);
+        exitButton.setBounds(568, 459, 155, 53);
         exitButton.setBorderPainted(false);
         exitButton.setContentAreaFilled(false);
         exitButton.setFocusPainted(false);
@@ -69,7 +76,7 @@ public class MainMenu extends JFrame {
 
         // volume panel
         JPanel volumePanel = createModernVolumeControl(bgClip);
-        volumePanel.setBounds(580, 490, 200, 60);
+        volumePanel.setBounds(320, 500, 157, 53);
         bgPanel.add(volumePanel);
     }
 
