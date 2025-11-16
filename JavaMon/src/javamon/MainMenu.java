@@ -45,7 +45,7 @@ public class MainMenu extends JFrame {
         ImageIcon scaledStartIcon = new ImageIcon(scaledStartImg);
 
         JButton startButton = new JButton(scaledStartIcon);
-        startButton.setBounds(102, 459, 155, 53);
+        startButton.setBounds(102, 459, 155, 53); //x,y , w,h
         startButton.setBorderPainted(false);
         startButton.setContentAreaFilled(false);
         startButton.setFocusPainted(false);
