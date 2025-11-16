@@ -47,7 +47,7 @@ public class MainMenu extends JFrame {
         startButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         startButton.addActionListener(e -> {
-            GameWindow game = new GameWindow();
+            TrainerSelection game = new TrainerSelection();
             game.setVisible(true);
             this.dispose();
         });
@@ -67,7 +67,7 @@ public class MainMenu extends JFrame {
         exitButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         exitButton.addActionListener(e -> System.exit(0));
 
-        // Modern Volume Control Panel
+        // volume panel
         JPanel volumePanel = createModernVolumeControl(bgClip);
         volumePanel.setBounds(580, 490, 200, 60);
         bgPanel.add(volumePanel);
