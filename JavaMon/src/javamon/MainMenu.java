@@ -37,7 +37,7 @@ public class MainMenu extends JFrame {
             }
         };
         bgPanel.setLayout(null);
-        setContentPane(bgPanel);
+        
 
         // Start button
         ImageIcon startIcon = new ImageIcon(getClass().getResource("/javamon/assets/start.png"));
