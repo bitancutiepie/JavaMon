@@ -76,7 +76,7 @@ public class TrainerSelection extends JFrame {
         // ============================
         // TRAINER CARDS
         // ============================
-        String[] trainers = {"elementalist", "mystic", "aggressor", "strategist", "beastmaster"};
+        String[] trainers = {"ELEMENTALIST", "MYSTIC", "AGGRESSOR", "STRATEGIST", "BEASTMASTER"};
         int[][] positions = {
             {30, 77, 197, 324},   // elementalist x, y, width, height
             {435, 260, 200, 337},  // mystic
