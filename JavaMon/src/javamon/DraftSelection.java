@@ -13,11 +13,6 @@ public class DraftSelection extends JFrame {
         setResizable(false);
         setLayout(null); 
 
-        // Example placeholder label
-        JLabel label = new JLabel("This is the Draft Selection screen");
-        label.setBounds(200, 250, 400, 50);
-        label.setFont(new Font("Arial", Font.BOLD, 20));
-        add(label);
 
         // CENTER BOX BUTTON
         ImageIcon startIcon = new ImageIcon(getClass().getResource("/javamon/assets/CENTER BOX.png"));
