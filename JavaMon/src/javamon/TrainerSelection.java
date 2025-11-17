@@ -79,10 +79,10 @@ public class TrainerSelection extends JFrame {
         String[] trainers = {"ELEMENTALIST", "MYSTIC", "AGGRESSOR", "STRATEGIST", "BEASTMASTER"};
         int[][] positions = {
             {30, 77, 197, 324},   // elementalist x, y, width, height
-            {435, 260, 200, 337},  // mystic
-            {538, 77, 220, 345},  // aggressor
-            {283, 77, 223, 336},  // strategist
-            {186, 260, 168, 337}   // beastmaster
+            {422, 270, 200, 337},  // mystic
+            {538, 71, 220, 345},  // aggressor
+            {283, 76, 223, 336},  // strategist
+            {176, 266, 168, 337}   // beastmaster
         };
 
         for (int i = 0; i < trainers.length; i++) {
