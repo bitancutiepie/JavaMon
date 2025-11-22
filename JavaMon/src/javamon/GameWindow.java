@@ -1,4 +1,4 @@
-package javamon;
+	package javamon;
 
 import javax.swing.*;
 
