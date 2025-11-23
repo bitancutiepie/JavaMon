@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 import javax.swing.Timer;
+import javax.imageio.ImageIO;
 
 public class DraftSelection extends JFrame {
 
@@ -27,6 +28,13 @@ public class DraftSelection extends JFrame {
     private static final int PFP_SIZE = 72;
     private static final int NAME_LABEL_WIDTH = 150; 
     private static final int LABEL_ALIGNMENT = SwingConstants.LEFT; 
+    
+    // Size for the hover pop-up image
+    private static final int HOVER_IMAGE_SIZE = 200; 
+    
+    // --- CONFIRMATION DIALOG CONSTANTS ---
+    private static final int CONFIRM_DIALOG_SIZE = 400;
+    private static final int CONFIRM_IMAGE_SIZE = 150;
 
     // Player (Ally) Slot Frame Positions (Background Image Position)
     private static final int PLAYER_SLOT_1_X = 73; 
@@ -45,25 +53,20 @@ public class DraftSelection extends JFrame {
     private static final int ENEMY_SLOT_3_Y = 468; 
     
     // --- MONSTER NAME/TYPE LABEL POSITIONS (Original Y + 20px offset) ---
-    
-    // Player Name X is constant: 221
     private static final int PLAYER_NAME_X = 221; 
     private static final int PLAYER_NAME_1_Y = 229; // Original 209 + 20
     private static final int PLAYER_NAME_2_Y = 365; // Original 345 + 20
     private static final int PLAYER_NAME_3_Y = 494; // Original 474 + 20
     
-    // Player Type X is constant: 221
     private static final int PLAYER_TYPE_1_Y = 250; // Original 230 + 20
     private static final int PLAYER_TYPE_2_Y = 387; // Original 367 + 20
     private static final int PLAYER_TYPE_3_Y = 515; // Original 495 + 20
 
-    // Enemy Name X is constant: 933 (shifted 15px left from 948)
     private static final int ENEMY_NAME_X = 933; 
     private static final int ENEMY_NAME_1_Y = 236; // Original 216 + 20
     private static final int ENEMY_NAME_2_Y = 358; // Original 338 + 20
     private static final int ENEMY_NAME_3_Y = 490; // Original 470 + 20
 
-    // Enemy Type X is constant: 933 (shifted 15px left from 948)
     private static final int ENEMY_TYPE_1_Y = 257; // Original 237 + 20
     private static final int ENEMY_TYPE_2_Y = 380; // Original 360 + 20
     private static final int ENEMY_TYPE_3_Y = 509; // Original 489 + 20
@@ -100,7 +103,13 @@ public class DraftSelection extends JFrame {
     private final JLabel[] enemyMonPFPLabels = new JLabel[MAX_SELECTION];
     private JLabel statusLabel;
     private JButton battleBtn;
-    private JLabel centerBox; // Made accessible to set Z-order
+    private JLabel centerBox; 
+    
+    // New component for image pop-up hover effect
+    private JWindow hoverWindow; 
+    
+    // New component for the custom confirmation dialog
+    private JDialog confirmationDialog; 
 
     // --- Custom Image Assets for Card Frames (Loaded once) ---
     private final ImageIcon playerFrameIcon;
@@ -119,6 +128,17 @@ public class DraftSelection extends JFrame {
         enemyTeam = new ArrayList<>();
         // -----------------------------------------------
 
+        // Initialize the transparent pop-up window
+        hoverWindow = new JWindow(this);
+        hoverWindow.setFocusableWindowState(false);
+        hoverWindow.setBackground(new Color(0, 0, 0, 0)); 
+        
+        // Initialize the custom confirmation dialog
+        confirmationDialog = new JDialog(this, "Confirm Selection", Dialog.ModalityType.APPLICATION_MODAL);
+        confirmationDialog.setSize(CONFIRM_DIALOG_SIZE, CONFIRM_DIALOG_SIZE);
+        confirmationDialog.setLocationRelativeTo(this);
+        confirmationDialog.setUndecorated(true); // Remove default title bar for custom look
+        
         // Load card frame assets
         playerFrameIcon = tryCreateIcon("/javamon/assets/PlayerBlue.png", LOCAL_DIR + "PlayerBlue.png");
         enemyFrameIcon = tryCreateIcon("/javamon/assets/PlayerRed.png", LOCAL_DIR + "PlayerRed.png");
@@ -180,7 +200,8 @@ public class DraftSelection extends JFrame {
         centerSelectionPanel = new JPanel();
         centerSelectionPanel.setBounds(372, 161, 460, 460); // Area inside the center box
         centerSelectionPanel.setOpaque(false);
-        centerSelectionPanel.setLayout(new GridLayout(4, 4, 5, 5)); 
+        // 4 rows, 5 columns (20 total slots)
+        centerSelectionPanel.setLayout(new GridLayout(4, 5, 5, 5)); 
         bgPanel.add(centerSelectionPanel);
 
         // --- Z-ORDER CORRECTION: Ensure buttons are on top of the central box UI image ---
@@ -267,15 +288,10 @@ public class DraftSelection extends JFrame {
         battleBtn.addActionListener(e -> {
             if (playerTeam.size() == MAX_SELECTION && enemyTeam.size() == MAX_SELECTION) {
                 System.out.println("Starting BATTLE!");
-                
-                // FIX: OPEN GameWindow and close DraftSelection
-                // Assuming GameWindow class exists in the javamon package
-                GameWindow gw = new GameWindow(); 
-                gw.setVisible(true);
                 DraftSelection.this.dispose(); 
-                
             } else {
-                JOptionPane.showMessageDialog(DraftSelection.this, "Draft not complete. Pick 3 Mons First.", "Draft Incomplete", JOptionPane.WARNING_MESSAGE);
+                // Use custom dialog instead of JOptionPane
+                showCustomMessageDialog("Draft Incomplete", "Draft not complete. Pick 3 Mons First.");
             }
         });
         bgPanel.add(battleBtn);
@@ -322,7 +338,7 @@ public class DraftSelection extends JFrame {
             centerSelectionPanel.setLayout(new BorderLayout()); 
             centerSelectionPanel.add(thinkingLabel, BorderLayout.CENTER);
             // Restore layout manager for when it's the player's turn again
-            centerSelectionPanel.setLayout(new GridLayout(4, 4, 5, 5)); 
+            centerSelectionPanel.setLayout(new GridLayout(4, 5, 5, 5)); 
             
         } else if (isPlayerTurn && playerTeam.size() < MAX_SELECTION) {
             // Corrected status label count to show current selection number + 1
@@ -344,27 +360,18 @@ public class DraftSelection extends JFrame {
                 monsterBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
                 
                 // QoL Enhancement: Hover Effect for Monster Cards
-                monsterBtn.addMouseListener(new MouseAdapter() {
-                    @Override
-                    public void mouseEntered(MouseEvent e) {
-                        monsterBtn.setIcon(hoverIcon);
-                    }
+                monsterBtn.addMouseListener(new newMonsterHoverAdapter(monster, monsterBtn, normalIcon, hoverIcon));
 
-                    @Override
-                    public void mouseExited(MouseEvent e) {
-                        monsterBtn.setIcon(normalIcon);
-                    }
-                });
-
-
-                monsterBtn.addActionListener(e -> handlePlayerSelection(monster));
+                // *** CHANGE: Now shows confirmation dialog instead of selecting directly ***
+                monsterBtn.addActionListener(e -> showConfirmationDialog(monster));
+                
                 centerSelectionPanel.add(monsterBtn);
             }
             
             // Fill remaining grid spots with empty placeholders (now transparent)
-            int placeholdersNeeded = (4 * 4) - remainingMonsters.size();
+            int totalGridSlots = 4 * 5; // 4 rows * 5 columns = 20
+            int placeholdersNeeded = totalGridSlots - remainingMonsters.size();
             for (int i = 0; i < placeholdersNeeded; i++) {
-                // Changed to an empty JLabel to remove the placeholder visual while keeping the grid structure
                 JLabel placeholder = new JLabel(); 
                 centerSelectionPanel.add(placeholder);
             }
@@ -372,16 +379,105 @@ public class DraftSelection extends JFrame {
         
         centerSelectionPanel.revalidate();
         centerSelectionPanel.repaint();
-        updateTeamSlots(); // Call again to refresh team slot visual QoL
+        updateTeamSlots(); 
+    }
+    
+    // *** NEW METHOD: Displays the custom confirmation dialog ***
+    private void showConfirmationDialog(Monster monster) {
+        if (!isPlayerTurn || playerTeam.size() >= MAX_SELECTION) {
+            return;
+        }
+        
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(new Color(20, 20, 20)); // Dark background
+        
+        Color typeColor = getColorForType(monster.getType());
+        panel.setBorder(BorderFactory.createLineBorder(typeColor.brighter(), 5)); // Themed border
+        
+        // --- 1. Header (Confirmation Text) ---
+        JLabel header = new JLabel("CONFIRM PICK", SwingConstants.CENTER);
+        header.setFont(new Font("Arial", Font.BOLD, 24));
+        header.setForeground(Color.YELLOW);
+        panel.add(header, BorderLayout.NORTH);
+
+        // --- 2. Center Content (Image and Info) ---
+        JPanel center = new JPanel();
+        center.setOpaque(false);
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+        
+        // Monster Image
+        JLabel imageLabel = new JLabel();
+        imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        Image largeImage = createMonsterPFPIcon(monster, CONFIRM_IMAGE_SIZE);
+        imageLabel.setIcon(new ImageIcon(largeImage));
+        imageLabel.setBorder(BorderFactory.createLineBorder(typeColor, 3));
+        center.add(Box.createVerticalStrut(15));
+        center.add(imageLabel);
+        
+        // Name Label
+        JLabel nameLabel = new JLabel(monster.getName(), SwingConstants.CENTER);
+        nameLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        nameLabel.setForeground(Color.WHITE);
+        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        center.add(nameLabel);
+        
+        // Type Label
+        JLabel typeLabel = new JLabel("(" + monster.getType() + ")", SwingConstants.CENTER);
+        typeLabel.setFont(new Font("Arial", Font.ITALIC, 18));
+        typeLabel.setForeground(typeColor.brighter());
+        typeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        center.add(typeLabel);
+        
+        panel.add(center, BorderLayout.CENTER);
+        
+        // --- 3. Buttons ---
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
+        buttonPanel.setOpaque(false);
+
+        // Confirm Button
+        JButton confirmBtn = new JButton("Confirm Pick");
+        confirmBtn.setFont(new Font("Arial", Font.BOLD, 16));
+        confirmBtn.setBackground(new Color(50, 200, 50)); // Green for Confirm
+        confirmBtn.setForeground(Color.BLACK);
+        confirmBtn.setFocusPainted(false);
+        confirmBtn.addActionListener(e -> {
+            confirmationDialog.dispose();
+            confirmSelection(monster); // Execute the actual selection logic
+        });
+        
+        // Cancel Button
+        JButton cancelBtn = new JButton("Cancel");
+        cancelBtn.setFont(new Font("Arial", Font.BOLD, 16));
+        cancelBtn.setBackground(new Color(200, 50, 50)); // Red for Cancel
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setFocusPainted(false);
+        cancelBtn.addActionListener(e -> confirmationDialog.dispose());
+        
+        buttonPanel.add(confirmBtn);
+        buttonPanel.add(cancelBtn);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        // Finalize Dialog
+        confirmationDialog.setContentPane(panel);
+        confirmationDialog.revalidate();
+        confirmationDialog.repaint();
+        confirmationDialog.setVisible(true); // Show the dialog
     }
 
-    private void handlePlayerSelection(Monster monster) {
+    // *** MODIFIED: Renamed the core logic handler and made it private ***
+    private void confirmSelection(Monster monster) {
         if (playerTeam.size() < MAX_SELECTION && isPlayerTurn) {
+            // 1. Add monster to team
             playerTeam.add(monster);
+            
+            // 2. Hide the hover window *immediately* after selection
+            hideHoverImage(); 
+            
+            // 3. Update UI
             updateTeamSlots();
             
+            // 4. Change turn and re-render
             isPlayerTurn = false;
-            
             renderAvailableMonsters(); 
         }
     }
@@ -421,7 +517,7 @@ public class DraftSelection extends JFrame {
             if (i < playerTeam.size()) {
                 // Slot is filled
                 Monster m = playerTeam.get(i);
-                playerMonPFPLabels[i].setIcon(new ImageIcon(createMonsterPFPIcon(m)));
+                playerMonPFPLabels[i].setIcon(new ImageIcon(createMonsterPFPIcon(m, PFP_SIZE)));
                 playerMonNameLabels[i].setText(m.getName());
                 playerMonTypeLabels[i].setText("(" + m.getType() + ")");
                 playerFrameLabels[i].setText("");
@@ -446,7 +542,7 @@ public class DraftSelection extends JFrame {
         for (int i = 0; i < MAX_SELECTION; i++) {
             if (i < enemyTeam.size()) {
                 Monster m = enemyTeam.get(i);
-                enemyMonPFPLabels[i].setIcon(new ImageIcon(createMonsterPFPIcon(m)));
+                enemyMonPFPLabels[i].setIcon(new ImageIcon(createMonsterPFPIcon(m, PFP_SIZE)));
                 enemyMonNameLabels[i].setText(m.getName());
                 enemyMonTypeLabels[i].setText("(" + m.getType() + ")");
                 enemyFrameLabels[i].setText("");
@@ -470,22 +566,23 @@ public class DraftSelection extends JFrame {
     
     private Color getColorForType(String type) {
         return switch (type.toLowerCase()) {
-            case "water" -> Color.BLUE;
-            case "fire" -> Color.RED;
-            case "grass" -> Color.GREEN;
-            case "lightning" -> Color.YELLOW;
-            case "bug" -> new Color(170, 180, 0); 
-            case "dark" -> Color.MAGENTA;
-            case "flying" -> Color.CYAN;
+            case "water" -> new Color(100, 150, 255); // Lighter Blue
+            case "fire" -> new Color(255, 120, 100);  // Lighter Red/Orange
+            case "grass" -> new Color(150, 255, 100); // Lighter Green
+            case "lightning" -> new Color(255, 255, 100); // Bright Yellow
+            case "bug" -> new Color(190, 200, 50); 
+            case "dark" -> new Color(180, 100, 255); // Purple
+            case "flying" -> new Color(150, 255, 255); // Light Cyan
             case "ice" -> Color.WHITE;
-            case "ground" -> Color.ORANGE;
+            case "ground" -> new Color(255, 180, 100); // Light Orange/Brown
             default -> Color.GRAY;
         };
     }
     
-    private BufferedImage createMonsterPFPIcon(Monster monster) {
-        int w = PFP_SIZE; 
-        int h = PFP_SIZE;
+    // Updated PFP Icon method to accept size
+    private BufferedImage createMonsterPFPIcon(Monster monster, int size) {
+        int w = size; 
+        int h = size;
         BufferedImage image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = image.createGraphics();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -496,6 +593,14 @@ public class DraftSelection extends JFrame {
         // Draw a circle
         g2d.fillOval(0, 0, w, h); 
 
+        // Draw the Monster Image only if it exists
+        if (monster.getImage() != null) {
+            Image monImage = monster.getImage().getScaledInstance(w - 10, h - 10, Image.SCALE_SMOOTH);
+            int x = (w - monImage.getWidth(null)) / 2;
+            int y = (h - monImage.getHeight(null)) / 2;
+            g2d.drawImage(monImage, x, y, null);
+        }
+
         g2d.setColor(Color.BLACK);
         g2d.setStroke(new BasicStroke(2));
         // Draw a circle border
@@ -504,15 +609,14 @@ public class DraftSelection extends JFrame {
         g2d.dispose();
         return image;
     }
+    
+    private BufferedImage createMonsterPFPIcon(Monster monster) {
+        return createMonsterPFPIcon(monster, PFP_SIZE);
+    }
+
 
     /**
      * Creates the icon used for the clickable buttons in the center panel.
-     * @param monster The monster data.
-     * @param isHovered True if the card should use a brighter background for the hover state.
-     * @param h Height.
-     * @param w Width.
-     * @param isSilhouette Not currently used, but kept for signature consistency.
-     * @return The rendered card image.
      */
     private BufferedImage createMonsterCardIcon(Monster monster, boolean isHovered, int h, int w, boolean isSilhouette) {
         BufferedImage image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
@@ -528,28 +632,35 @@ public class DraftSelection extends JFrame {
 
         Color bgColor = isHovered ? hoverBg : normalBg;
         
-        Color iconColor = typeColor; // Icon color is always the Type color
-        Color textColor = Color.WHITE; // Text is always white
-        
         // 1. Draw Background
         g2d.setColor(bgColor);
         g2d.fillRect(0, 0, w, h);
 
-        // 2. Draw Monster Icon (PFP)
+        // 2. Draw Monster Icon (PFP/Image)
         int iconSize = 50; 
         int arc = 15;
         int iconX = (w - iconSize) / 2;
         int iconY = (h - iconSize) / 2 - 15; 
 
-        g2d.setColor(iconColor);
+        // Draw the colored type square behind the image
+        g2d.setColor(typeColor.darker());
         g2d.fillRoundRect(iconX, iconY, iconSize, iconSize, arc, arc);
 
+        // Draw the actual Monster Image only if it exists
+        if (monster.getImage() != null) {
+            Image monImage = monster.getImage().getScaledInstance(iconSize - 10, iconSize - 10, Image.SCALE_SMOOTH);
+            int imgX = iconX + 5;
+            int imgY = iconY + 5;
+            g2d.drawImage(monImage, imgX, imgY, null);
+        }
+
+        // Draw border
         g2d.setColor(Color.BLACK);
         g2d.setStroke(new BasicStroke(2));
         g2d.drawRoundRect(iconX, iconY, iconSize, iconSize, arc, arc);
         
         // 3. Draw Text
-         g2d.setColor(textColor);
+         g2d.setColor(Color.WHITE);
          
          // Name (Bigger)
          g2d.setFont(new Font("Arial", Font.BOLD, 12));
@@ -567,27 +678,159 @@ public class DraftSelection extends JFrame {
         return image;
     }
     
+    // --- MONSTER HOVER WINDOW UTILITY ---
+    
+    private void showHoverImage(Monster monster, int x, int y) {
+        if (monster.getImage() == null) {
+            // Only show pop-up for monsters with an actual image
+            return; 
+        }
+        
+        // Panel for the content
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BorderLayout());
+        
+        // Create a large, scaled image icon
+        Image scaledImage = monster.getImage().getScaledInstance(HOVER_IMAGE_SIZE, HOVER_IMAGE_SIZE, Image.SCALE_SMOOTH);
+        JLabel imageLabel = new JLabel(new ImageIcon(scaledImage));
+        
+        // Add a subtle border or background to the pop-up
+        imageLabel.setBorder(BorderFactory.createLineBorder(getColorForType(monster.getType()), 5));
+        
+        contentPanel.add(imageLabel, BorderLayout.CENTER);
+        
+        // Set the content and size of the JWindow
+        hoverWindow.setContentPane(contentPanel);
+        hoverWindow.setSize(HOVER_IMAGE_SIZE, HOVER_IMAGE_SIZE);
+        
+        // Position the window slightly below and to the right of the mouse cursor
+        hoverWindow.setLocation(x + 10, y + 10);
+        hoverWindow.setVisible(true);
+    }
+    
+    private void hideHoverImage() {
+        hoverWindow.setVisible(false);
+    }
+    
+    // --- Custom Message Dialog (Replaces JOptionPane) ---
+    private void showCustomMessageDialog(String title, String message) {
+        JDialog messageDialog = new JDialog(this, title, Dialog.ModalityType.APPLICATION_MODAL);
+        messageDialog.setSize(300, 150);
+        messageDialog.setLocationRelativeTo(this);
+        messageDialog.setUndecorated(true);
+        
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(new Color(20, 20, 20));
+        panel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 4));
+        
+        JLabel msgLabel = new JLabel("  " + message, SwingConstants.CENTER);
+        msgLabel.setForeground(Color.WHITE);
+        msgLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        
+        JButton okBtn = new JButton("OK");
+        okBtn.setBackground(new Color(50, 100, 200)); // Blue OK button
+        okBtn.setForeground(Color.WHITE);
+        okBtn.addActionListener(e -> messageDialog.dispose());
+        
+        JPanel btnPanel = new JPanel();
+        btnPanel.setOpaque(false);
+        btnPanel.add(okBtn);
+        
+        panel.add(msgLabel, BorderLayout.CENTER);
+        panel.add(btnPanel, BorderLayout.SOUTH);
+        
+        messageDialog.setContentPane(panel);
+        messageDialog.setVisible(true);
+    }
+
     // --- HELPER CLASSES AND METHODS ---
     
     public static class Monster {
         private final String name;
         private final String type;
-        public Monster(String name, String type) {
+        private final Image image; 
+        
+        public Monster(String name, String type, String imagePath) {
             this.name = name;
             this.type = type;
+            // The image loading utility now gracefully handles null or missing files.
+            this.image = (imagePath != null) ? loadImagePreferResource(imagePath, LOCAL_DIR + new File(imagePath).getName()) : null;
         }
+        
         public String getName() { return name; }
         public String getType() { return type; }
+        public Image getImage() { return image; } 
     }
     
+    /**
+     * MouseAdapter implementation to handle hover effects and the image pop-up.
+     */
+    private class newMonsterHoverAdapter extends MouseAdapter {
+        private final Monster monster;
+        private final JButton button;
+        private final ImageIcon normalIcon;
+        private final ImageIcon hoverIcon;
+
+        public newMonsterHoverAdapter(Monster monster, JButton button, ImageIcon normalIcon, ImageIcon hoverIcon) {
+            this.monster = monster;
+            this.button = button;
+            this.normalIcon = normalIcon;
+            this.hoverIcon = hoverIcon;
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            button.setIcon(hoverIcon);
+            // Get the absolute position of the button on the screen
+            Point p = button.getLocationOnScreen();
+            showHoverImage(monster, p.x + button.getWidth(), p.y - (HOVER_IMAGE_SIZE / 2));
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            button.setIcon(normalIcon);
+            hideHoverImage();
+        }
+    }
+    
+    /**
+     * Creates 18 monsters total (12 named, 6 placeholders).
+     */
     private List<Monster> createPlaceholderMonsters() {
         List<Monster> monsters = new ArrayList<>();
-        String[] types = {"Water", "Fire", "Grass", "Lightning", "Bug", "Dark", "Flying", "Ice", "Ground", "Water", "Fire", "Grass", "Lightning", "Bug", "Dark", "Flying"};
-        String[] names = {"Wilkeens", "Boombero", "Sparky", "Tycoon", "Hose", "Milldam", "Pannykee", "Sawaiee", "Apolet", "Guu", "Dah", "San", "Icey", "Buggy", "Darky", "Fly"};
         
-        for (int i = 0; i < 16; i++) {
-            monsters.add(new Monster(names[i % names.length], types[i % types.length])); 
-        }
+        // --- 1. CORE MONSTERS (18 TOTAL) ---
+        // Water
+        monsters.add(new Monster("Wilkeens", "Water", null)); 
+        monsters.add(new Monster("Hose", "Water", null)); 
+        // Fire
+        monsters.add(new Monster("Boombero", "Fire", null)); 
+        monsters.add(new Monster("Apoyet", "Fire", "/javamon/assets/apoyet.png")); 
+        // Grass
+        monsters.add(new Monster("Dahmoe", "Grass", "/javamon/assets/dahmoe.png")); 
+        monsters.add(new Monster("Santan", "Grass", null)); 
+        // Bug
+        monsters.add(new Monster("Guyum", "Bug", "/javamon/assets/guyum.png")); 
+        monsters.add(new Monster("Salagoo", "Bug", "/javamon/assets/salagoo.png")); 
+        // Lightning
+        monsters.add(new Monster("Lectric", "Lightning", "/javamon/assets/lectric.png")); 
+        monsters.add(new Monster("Sparky", "Lightning", null)); 
+        // Ground
+        monsters.add(new Monster("Sawalee", "Ground", null)); 
+        monsters.add(new Monster("Elypante", "Ground", null)); 
+        // Flying
+        monsters.add(new Monster("Pannykee", "Flying", null)); 
+        monsters.add(new Monster("Agilean", "Flying", null));  
+        // Ice
+        monsters.add(new Monster("Sorbeetez", "Ice", null)); 
+        monsters.add(new Monster("Gimalam", "Ice", null));    
+        // Dark
+        monsters.add(new Monster("Alailaw", "Dark", null)); 
+        monsters.add(new Monster("Milidam", "Dark", null)); 
+        
+        // Shuffle the list to randomize the pool order
+        java.util.Collections.shuffle(monsters);
+        
         return monsters;
     }
 
@@ -645,15 +888,21 @@ public class DraftSelection extends JFrame {
         return btn;
     }
 
-    private Image loadImagePreferResource(String resourcePath, String localPath) {
+    private static Image loadImagePreferResource(String resourcePath, String localPath) {
         try {
-            URL url = getClass().getResource(resourcePath);
-            if (url != null) return new ImageIcon(url).getImage();
+            URL url = DraftSelection.class.getResource(resourcePath);
+            if (url != null) {
+                BufferedImage img = ImageIO.read(url);
+                if (img != null) return img;
+            }
         } catch (Exception ignored) {}
 
         try {
             File f = new File(localPath);
-            if (f.exists()) return new ImageIcon(f.getAbsolutePath()).getImage();
+            if (f.exists()) {
+                BufferedImage img = ImageIO.read(f);
+                if (img != null) return img;
+            }
         } catch (Exception ignored) {}
 
         System.err.println("Image not found: " + resourcePath + " | " + localPath);
