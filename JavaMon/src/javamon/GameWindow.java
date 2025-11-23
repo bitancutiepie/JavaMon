@@ -6,7 +6,7 @@ public class GameWindow extends JFrame {
 
     public GameWindow() {
         setTitle("JavaMon");
-        setSize(800, 600);
+        setSize(1280, 720);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
