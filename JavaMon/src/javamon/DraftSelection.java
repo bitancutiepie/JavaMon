@@ -801,10 +801,10 @@ public class DraftSelection extends JFrame {
         
         // --- 1. CORE MONSTERS (18 TOTAL) ---
         // Water
-        monsters.add(new Monster("Wilkeens", "Water", null)); 
-        monsters.add(new Monster("Hose", "Water", null)); 
+        monsters.add(new Monster("Wilkeens", "Water", "/javamon/assets/wilkeens.png")); 
+        monsters.add(new Monster("Hose", "Water", "/javamon/assets/hose.png")); 
         // Fire
-        monsters.add(new Monster("Boombero", "Fire", null)); 
+        monsters.add(new Monster("Boombero", "Fire", "/javamon/assets/boombero.png")); 
         monsters.add(new Monster("Apoyet", "Fire", "/javamon/assets/apoyet.png")); 
         // Grass
         monsters.add(new Monster("Dahmoe", "Grass", "/javamon/assets/dahmoe.png")); 
@@ -814,19 +814,19 @@ public class DraftSelection extends JFrame {
         monsters.add(new Monster("Salagoo", "Bug", "/javamon/assets/salagoo.png")); 
         // Lightning
         monsters.add(new Monster("Lectric", "Lightning", "/javamon/assets/lectric.png")); 
-        monsters.add(new Monster("Sparky", "Lightning", null)); 
+        monsters.add(new Monster("Patricky", "Lightning", "/javamon/assets/patricky.png")); 
         // Ground
         monsters.add(new Monster("Sawalee", "Ground", null)); 
         monsters.add(new Monster("Elypante", "Ground", null)); 
         // Flying
         monsters.add(new Monster("Pannykee", "Flying", null)); 
-        monsters.add(new Monster("Agilean", "Flying", null));  
+        monsters.add(new Monster("Agilean", "Flying", "/javamon/assets/agilean.png"));  
         // Ice
-        monsters.add(new Monster("Sorbeetez", "Ice", null)); 
-        monsters.add(new Monster("Gimalam", "Ice", null));    
+        monsters.add(new Monster("Sorbeetez", "Ice", "/javamon/assets/sorbeetez.png")); 
+        monsters.add(new Monster("Gimalam", "Ice", "/javamon/assets/gimalam.png"));    
         // Dark
-        monsters.add(new Monster("Alailaw", "Dark", null)); 
-        monsters.add(new Monster("Milidam", "Dark", null)); 
+        monsters.add(new Monster("Alailaw", "Dark", "/javamon/assets/alailaw.png")); 
+        monsters.add(new Monster("Milidam", "Dark", "/javamon/assets/milidam.png")); 
         
         // Shuffle the list to randomize the pool order
         java.util.Collections.shuffle(monsters);
