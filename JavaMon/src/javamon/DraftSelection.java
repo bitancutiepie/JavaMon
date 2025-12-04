@@ -288,6 +288,10 @@ public class DraftSelection extends JFrame {
         battleBtn.addActionListener(e -> {
             if (playerTeam.size() == MAX_SELECTION && enemyTeam.size() == MAX_SELECTION) {
                 System.out.println("Starting BATTLE!");
+                
+                GameWindow game = new GameWindow();
+                game.setVisible(true);
+                
                 DraftSelection.this.dispose(); 
             } else {
                 // Use custom dialog instead of JOptionPane
