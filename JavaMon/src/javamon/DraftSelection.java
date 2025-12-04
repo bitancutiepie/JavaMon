@@ -808,7 +808,7 @@ public class DraftSelection extends JFrame {
         monsters.add(new Monster("Apoyet", "Fire", "/javamon/assets/apoyet.png")); 
         // Grass
         monsters.add(new Monster("Dahmoe", "Grass", "/javamon/assets/dahmoe.png")); 
-        monsters.add(new Monster("Santan", "Grass", null)); 
+        monsters.add(new Monster("Santan", "Grass", "/javamon/assets/Santan.png")); 
         // Bug
         monsters.add(new Monster("Guyum", "Bug", "/javamon/assets/guyum.png")); 
         monsters.add(new Monster("Salagoo", "Bug", "/javamon/assets/salagoo.png")); 
@@ -819,7 +819,7 @@ public class DraftSelection extends JFrame {
         monsters.add(new Monster("Sawalee", "Ground", null)); 
         monsters.add(new Monster("Elypante", "Ground", null)); 
         // Flying
-        monsters.add(new Monster("Pannykee", "Flying", null)); 
+        monsters.add(new Monster("Pannykee", "Flying", "/javamon/assets/Pannykee.png")); 
         monsters.add(new Monster("Agilean", "Flying", "/javamon/assets/agilean.png"));  
         // Ice
         monsters.add(new Monster("Sorbeetez", "Ice", "/javamon/assets/sorbeetez.png")); 
