@@ -820,8 +820,8 @@ public class DraftSelection extends JFrame {
         monsters.add(new Monster("Lectric", "Lightning", "/javamon/assets/lectric.png")); 
         monsters.add(new Monster("Patricky", "Lightning", "/javamon/assets/patricky.png")); 
         // Ground
-        monsters.add(new Monster("Sawalee", "Ground", null)); 
-        monsters.add(new Monster("Elypante", "Ground", null)); 
+        monsters.add(new Monster("Sawalee", "Ground", "/javamon/assets/SAWALEE.png")); 
+        monsters.add(new Monster("Elypante", "Ground", "/javamon/assets/ELYPANTE.png")); 
         // Flying
         monsters.add(new Monster("Pannykee", "Flying", "/javamon/assets/Pannykee.png")); 
         monsters.add(new Monster("Agilean", "Flying", "/javamon/assets/agilean.png"));  
