@@ -9,8 +9,6 @@ import java.net.URL;
 
 public class AssetLoader {
 
-    private static final String LOCAL_DIR = "/mnt/data/";
-
     /**
      * Primary method to load images.
      */
@@ -22,18 +20,7 @@ public class AssetLoader {
                 return ImageIO.read(url);
             }
         } catch (Exception ignored) {
-            // Fallthrough to local file
-        }
-
-        // 2. Try to load from local directory (Development environment)
-        try {
-            String localPath = LOCAL_DIR + fileName;
-            File f = new File(localPath);
-            if (f.exists()) {
-                return ImageIO.read(f);
-            }
-        } catch (Exception ignored) {
-            // Fail silently
+            // Fallthrough to failure if resource not found
         }
 
         System.err.println("Asset not found: " + resourcePath + " | " + fileName);
