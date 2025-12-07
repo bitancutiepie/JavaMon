@@ -288,6 +288,10 @@ public class DraftSelection extends JFrame {
         battleBtn.addActionListener(e -> {
             if (playerTeam.size() == MAX_SELECTION && enemyTeam.size() == MAX_SELECTION) {
                 System.out.println("Starting BATTLE!");
+                
+                GameWindow game = new GameWindow();
+                game.setVisible(true);
+                
                 DraftSelection.this.dispose(); 
             } else {
                 // Use custom dialog instead of JOptionPane
@@ -808,7 +812,7 @@ public class DraftSelection extends JFrame {
         monsters.add(new Monster("Apoyet", "Fire", "/javamon/assets/apoyet.png")); 
         // Grass
         monsters.add(new Monster("Dahmoe", "Grass", "/javamon/assets/dahmoe.png")); 
-        monsters.add(new Monster("Santan", "Grass", null)); 
+        monsters.add(new Monster("Santan", "Grass", "/javamon/assets/Santan.png")); 
         // Bug
         monsters.add(new Monster("Guyum", "Bug", "/javamon/assets/guyum.png")); 
         monsters.add(new Monster("Salagoo", "Bug", "/javamon/assets/salagoo.png")); 
@@ -816,10 +820,10 @@ public class DraftSelection extends JFrame {
         monsters.add(new Monster("Lectric", "Lightning", "/javamon/assets/lectric.png")); 
         monsters.add(new Monster("Patricky", "Lightning", "/javamon/assets/patricky.png")); 
         // Ground
-        monsters.add(new Monster("Sawalee", "Ground", null)); 
-        monsters.add(new Monster("Elypante", "Ground", null)); 
+        monsters.add(new Monster("Sawalee", "Ground", "/javamon/assets/Sawalee.png")); 
+        monsters.add(new Monster("Elypante", "Ground", "/javamon/assets/Elypante.png")); 
         // Flying
-        monsters.add(new Monster("Pannykee", "Flying", null)); 
+        monsters.add(new Monster("Pannykee", "Flying", "/javamon/assets/Pannykee.png")); 
         monsters.add(new Monster("Agilean", "Flying", "/javamon/assets/agilean.png"));  
         // Ice
         monsters.add(new Monster("Sorbeetez", "Ice", "/javamon/assets/sorbeetez.png")); 
