@@ -6,272 +6,193 @@ import java.util.List;
 
 public class DatabaseManager {
 
-    // The name of the SQLite database file. This file will be cloned with your app.
     private static final String DB_FILE = "javamon.db";
     private static final String URL = "jdbc:sqlite:" + DB_FILE;
 
-    /**
-     * Establishes a connection to the database.
-     */
     private Connection connect() {
         Connection conn = null;
         try {
-            // Register the driver (optional in modern Java, but required if Class.forName fails)
             Class.forName("org.sqlite.JDBC"); 
             conn = DriverManager.getConnection(URL);
-            // System.out.println("Connection to SQLite has been established.");
-        } catch (ClassNotFoundException e) {
-            System.err.println("SQLite Driver not found. Ensure the jar is in your classpath: " + e.getMessage());
-            // conn remains null here
-        } catch (SQLException e) {
+        } catch (ClassNotFoundException | SQLException e) {
             System.err.println("Database connection failed: " + e.getMessage());
         }
         return conn;
     }
 
-    /**
-     * Initializes all necessary tables (Ability, Monster).
-     */
     public void initializeDatabase() {
-        // --- Added check to prevent NullPointerException ---
         Connection conn = connect();
-        if (conn == null) {
-            System.err.println("Database initialization skipped due to connection failure.");
-            return; // Exit early if connection failed.
-        }
-        // ----------------------------------------------------
+        if (conn == null) return;
         
-        String createAbilityTable = "CREATE TABLE IF NOT EXISTS Ability (\n"
-                + "    id INTEGER PRIMARY KEY,\n"
-                + "    name TEXT NOT NULL,\n"
-                + "    description TEXT,\n"
-                + "    type TEXT NOT NULL\n"
-                + ");";
+        String createAbilityTable = "CREATE TABLE IF NOT EXISTS Ability (id INTEGER PRIMARY KEY, name TEXT, description TEXT, type TEXT);";
+        // Updated Table Schema for 4 Abilities
+        String createMonsterTable = "CREATE TABLE IF NOT EXISTS Monster (id INTEGER PRIMARY KEY, name TEXT, type TEXT, base_hp INTEGER, base_atk INTEGER, base_def INTEGER, base_spd INTEGER, "
+                + "a1 INTEGER, a2 INTEGER, a3 INTEGER, a4 INTEGER, "
+                + "FOREIGN KEY(a1) REFERENCES Ability(id), FOREIGN KEY(a2) REFERENCES Ability(id), "
+                + "FOREIGN KEY(a3) REFERENCES Ability(id), FOREIGN KEY(a4) REFERENCES Ability(id));";
 
-        String createMonsterTable = "CREATE TABLE IF NOT EXISTS Monster (\n"
-                + "    id INTEGER PRIMARY KEY,\n"
-                + "    name TEXT NOT NULL,\n"
-                + "    type TEXT NOT NULL,\n"
-                + "    base_hp INTEGER,\n"
-                + "    base_atk INTEGER,\n"
-                + "    base_def INTEGER,\n"
-                + "    base_spd INTEGER,\n"
-                + "    ability1_id INTEGER,\n"
-                + "    ability2_id INTEGER,\n"
-                + "    FOREIGN KEY(ability1_id) REFERENCES Ability(id),\n"
-                + "    FOREIGN KEY(ability2_id) REFERENCES Ability(id)\n"
-                + ");";
-
-        // We use the conn object from above and close it in the try-with-resources block
-        try (conn; 
-             Statement stmt = conn.createStatement()) {
-            
-            // Execute table creation statements
+        try (conn; Statement stmt = conn.createStatement()) {
             stmt.execute(createAbilityTable);
             stmt.execute(createMonsterTable);
             
-            // Populate data if needed (Idempotent: checks if data already exists)
-            populateInitialData(conn);
-            
-            System.out.println("Database and tables initialized successfully.");
+            if (getRowCount(conn, "Monster") == 0) {
+                populateInitialData(conn);
+            }
         } catch (SQLException e) {
-            System.err.println("Database initialization error: " + e.getMessage());
+            System.err.println("DB Init Error: " + e.getMessage());
         }
     }
 
-    /**
-     * Populates the Ability and Monster tables with initial game data.
-     */
     private void populateInitialData(Connection conn) throws SQLException {
-        // --- Ability Data ---
-        if (getRowCount(conn, "Ability") == 0) {
-            System.out.println("Populating Ability data...");
-            String insertAbility = "INSERT INTO Ability (id, name, description, type) VALUES (?, ?, ?, ?)";
-            try (PreparedStatement pstmt = conn.prepareStatement(insertAbility)) {
-                // Wilkeens Abilities
-                insertAbility(pstmt, 101, "Tidal Slam", "Deals moderate water damage. 20% chance Reduce enemy speed.", "Water");
-                insertAbility(pstmt, 102, "Hydro Cool", "Restore 10% HP for whole team.", "Healing");
-                // Hose Abilities
-                insertAbility(pstmt, 103, "Aqua Pool", "Powerful attack but loses 5% hp.", "Water");
-                insertAbility(pstmt, 104, "Shield Bubble", "Reduces next attack by 30%.", "Defense");
-                // Boombero Abilities
-                insertAbility(pstmt, 105, "Flaming Flare", "Deals fire daamge, 20% chance to Burn enemy.", "Fire");
-                insertAbility(pstmt, 106, "Overheat", "Damage bonus by 30%, but reduces defense by 20%.", "Buff");
-                // Apoyet Abilities
-                insertAbility(pstmt, 107, "Flame Aura", "Damage per turn (DoT).", "Fire");
-                insertAbility(pstmt, 108, "Blazing Blaze", "Heals 15% HP and gain 15% speed boost.", "Healing");
-                // Dahmoe Abilities
-                insertAbility(pstmt, 109, "Leaf Cutter", "Deals Grass Damage, 25% chance to reduce enemy defense.", "Grass");
-                insertAbility(pstmt, 110, "Revitalize", "Restores 25% HP.", "Healing");
-                // Santan Abilities
-                insertAbility(pstmt, 111, "Vine Wrap", "Deals moderate grass damage, freeze opponent for a turn.", "Grass");
-                insertAbility(pstmt, 112, "Fertilize", "Increases damage by 20%.", "Buff");
-                // Guyum Abilities
-                insertAbility(pstmt, 113, "Rocky Barrage", "Hits 3 Times consecutive.", "Bug");
-                insertAbility(pstmt, 114, "Harden Shell", "Reduces damage by 25% for 2 turns.", "Defense");
-                // Salagoo Abilities
-                insertAbility(pstmt, 115, "Sticky Goo", "Deals small damage. Reflect damage back to opponent.", "Bug");
-                insertAbility(pstmt, 116, "Sticky Morph", "WHEN HP <40%, 2x attack.", "Buff");
-                // Lectric Abilities
-                insertAbility(pstmt, 117, "Thunder Buzz", "Deals Lightning damage, 25% chance to Paralyze.", "Lightning");
-                insertAbility(pstmt, 118, "Volt Guard", "Reduces incoming damage by 25% for next turn.", "Defense");
-                // Sparky Abilities
-                insertAbility(pstmt, 119, "Spark Build-up", "Next Lightning Attack is boosted 50%.", "Buff");
-                insertAbility(pstmt, 120, "Spark Boom", "Double hit attack with moderate damage.", "Lightning");
-                // Pannykee Abilities
-                insertAbility(pstmt, 121, "Gust Wing", "Fast Flying attack that always hits first. Aggressor synergy.", "Flying");
-                insertAbility(pstmt, 122, "Wind Barrier", "Reduces damage taken by 30% next turn. Strategist synergy.", "Defense");
-                // Agilean Abilities
-                insertAbility(pstmt, 123, "Aerial Slash", "High crit rate Flying attack.", "Flying");
-                insertAbility(pstmt, 124, "Tailwind", "Boosts speed for 3 turns.", "Buff");
-                // Sorbeetez Abilities
-                insertAbility(pstmt, 125, "Frost Spike", "Deals Ice damage, 25% chance to Freeze.", "Ice");
-                insertAbility(pstmt, 126, "Chill Veil", "Reduces enemy attack for 2 turns.", "Debuff");
-                // Gimalam Abilities
-                insertAbility(pstmt, 127, "Snow Burst", "Hits all enemies. 15% Freeze chance.", "Ice");
-                insertAbility(pstmt, 128, "Ice Heal", "Restores 20% HP and slightly raises defense.", "Healing");
-                // Alailaw Abilities
-                insertAbility(pstmt, 129, "Shadow Claw", "High critical hit rate attack.", "Dark");
-                insertAbility(pstmt, 130, "Fear Gaze", "25% chance to make the opponent skip turn.", "Debuff");
-                // Milidam Abilities
-                insertAbility(pstmt, 131, "Dark Mirage", "20% chance to dodge next attack automatically.", "Defense");
-                insertAbility(pstmt, 132, "Soul Drain", "Deals damage and heals 25% of the dealt amount.", "Drain");
-                
-                pstmt.executeBatch();
-            }
+        System.out.println("Applying Strategic Balance Patch v3.0 (4-Move Update)...");
+        String insertAbility = "INSERT INTO Ability (id, name, description, type) VALUES (?, ?, ?, ?)";
+        
+        try (PreparedStatement pstmt = conn.prepareStatement(insertAbility)) {
+            // --- WATER ---
+            addAbil(pstmt, 101, "Tidal Slam", "Reliable Water Dmg.", "Water");
+            addAbil(pstmt, 102, "Hydro Pump", "High Dmg, Low Accuracy.", "Water");
+            addAbil(pstmt, 103, "Aqua Ring", "Restores HP over time (Instant Heal for now).", "Healing");
+            addAbil(pstmt, 104, "Bubble Shield", "Increases Defense.", "Buff");
+            
+            // --- FIRE ---
+            addAbil(pstmt, 105, "Ember", "Reliable Fire Dmg.", "Fire");
+            addAbil(pstmt, 106, "Fire Blast", "Massive Dmg, chance to miss.", "Fire");
+            addAbil(pstmt, 107, "Kindle", "Increases Attack sharply.", "Buff");
+            addAbil(pstmt, 108, "Cauterize", "Heals HP but reduces Def.", "Healing");
+
+            // --- GRASS ---
+            addAbil(pstmt, 109, "Razor Leaf", "Reliable Grass Dmg. High Crit.", "Grass");
+            addAbil(pstmt, 110, "Solar Beam", "Massive Dmg.", "Grass");
+            addAbil(pstmt, 111, "Synthesis", "Restores 50% HP.", "Healing");
+            addAbil(pstmt, 112, "Spore", "Chance to Sleep/Stun enemy.", "Debuff");
+
+            // --- BUG ---
+            addAbil(pstmt, 113, "X-Scissor", "Reliable Bug Dmg.", "Bug");
+            addAbil(pstmt, 114, "Megahorn", "High Dmg, Low Accuracy.", "Bug");
+            addAbil(pstmt, 115, "Harden", "Raises Defense.", "Buff");
+            addAbil(pstmt, 116, "String Shot", "Lowers Enemy Speed.", "Debuff");
+
+            // --- LIGHTNING ---
+            addAbil(pstmt, 117, "Spark", "Reliable Lightning Dmg.", "Lightning");
+            addAbil(pstmt, 118, "Thunder", "Massive Dmg, low accuracy.", "Lightning");
+            addAbil(pstmt, 119, "Charge", "Next attack does 2x damage.", "Buff");
+            addAbil(pstmt, 120, "Thunder Wave", "Paralyzes enemy.", "Debuff");
+
+            // --- FLYING ---
+            addAbil(pstmt, 121, "Wing Attack", "Reliable Flying Dmg.", "Flying");
+            addAbil(pstmt, 122, "Brave Bird", "Massive Dmg, User takes Recoil.", "Flying");
+            addAbil(pstmt, 123, "Roost", "Restores HP.", "Healing");
+            addAbil(pstmt, 124, "Tailwind", "Increases Speed.", "Buff");
+
+            // --- ICE ---
+            addAbil(pstmt, 125, "Ice Beam", "Reliable Ice Dmg. Chance to freeze.", "Ice");
+            addAbil(pstmt, 126, "Blizzard", "AoE Dmg (High Power).", "Ice");
+            addAbil(pstmt, 127, "Hail", "Buffs Defense.", "Buff");
+            addAbil(pstmt, 128, "Sheer Cold", "Low Accuracy, Huge Damage.", "Ice");
+
+            // --- DARK ---
+            addAbil(pstmt, 129, "Bite", "Reliable Dark Dmg.", "Dark");
+            addAbil(pstmt, 130, "Crunch", "High Dark Dmg. Lowers Def.", "Dark");
+            addAbil(pstmt, 131, "Nasty Plot", "Sharply raises Attack.", "Buff");
+            addAbil(pstmt, 132, "Dark Void", "Puts enemy to sleep.", "Debuff");
+
+            // --- GROUND ---
+            addAbil(pstmt, 133, "Mud Shot", "Ground Dmg. Lowers Speed.", "Ground");
+            addAbil(pstmt, 134, "Earthquake", "Massive Ground Dmg.", "Ground");
+            addAbil(pstmt, 135, "Sandstorm", "Buffs Sp.Def (Simulated as Def).", "Buff");
+            addAbil(pstmt, 136, "Fissure", "Risk move. Huge dmg or miss.", "Ground");
+
+            pstmt.executeBatch();
         }
 
-        // --- Monster Data ---
-        if (getRowCount(conn, "Monster") == 0) {
-            System.out.println("Populating Monster data...");
-            String insertMonster = "INSERT INTO Monster (id, name, type, base_hp, base_atk, base_def, base_spd, ability1_id, ability2_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            try (PreparedStatement pstmt = conn.prepareStatement(insertMonster)) {
-                // Base stats are placeholders, adjust as needed. (HP, ATK, DEF, SPD)
-                // Water
-                insertMonster(pstmt, 1, "Wilkeens", "Water", 100, 80, 90, 60, 101, 102);
-                insertMonster(pstmt, 2, "Hose", "Water", 90, 100, 70, 70, 103, 104);
-                // Fire
-                insertMonster(pstmt, 3, "Boombero", "Fire", 110, 95, 65, 50, 105, 106);
-                insertMonster(pstmt, 4, "Apoyet", "Fire", 85, 110, 80, 80, 107, 108);
-                // Grass
-                insertMonster(pstmt, 5, "Dahmoe", "Grass", 95, 75, 85, 55, 109, 110);
-                insertMonster(pstmt, 6, "Santan", "Grass", 80, 90, 70, 90, 111, 112);
-                // Bug
-                insertMonster(pstmt, 7, "Guyum", "Bug", 70, 85, 120, 40, 113, 114);
-                insertMonster(pstmt, 8, "Salagoo", "Bug", 75, 105, 75, 65, 115, 116);
-                // Lightning
-                insertMonster(pstmt, 9, "Lectric", "Lightning", 90, 100, 70, 85, 117, 118);
-                insertMonster(pstmt, 10, "Sparky", "Lightning", 80, 120, 60, 100, 119, 120);
-                // Ground 
-                insertMonster(pstmt, 11, "Sawalee", "Ground", 120, 80, 110, 30, 101, 102); 
-                insertMonster(pstmt, 12, "Elypante", "Ground", 105, 95, 100, 45, 103, 104); 
-                // Flying
-                insertMonster(pstmt, 13, "Pannykee", "Flying", 70, 115, 65, 110, 121, 122);
-                insertMonster(pstmt, 14, "Agilean", "Flying", 85, 90, 75, 125, 123, 124);
-                // Ice
-                insertMonster(pstmt, 15, "Sorbeetez", "Ice", 90, 105, 80, 70, 125, 126);
-                insertMonster(pstmt, 16, "Gimalam", "Ice", 100, 90, 95, 60, 127, 128);
-                // Dark
-                insertMonster(pstmt, 17, "Alailaw", "Dark", 70, 130, 55, 90, 129, 130);
-                insertMonster(pstmt, 18, "Milidam", "Dark", 80, 110, 70, 105, 131, 132);
+        // --- MONSTER STATS (Strategic Stats: HP 400-600, Atk 90-130) ---
+        String insertMonster = "INSERT INTO Monster (id, name, type, base_hp, base_atk, base_def, base_spd, a1, a2, a3, a4) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(insertMonster)) {
+            // Water
+            addMon(pstmt, 1, "Wilkeens", "Water", 550, 90, 120, 60, 101, 102, 103, 104); // Paladin
+            addMon(pstmt, 2, "Hose", "Water", 450, 130, 80, 85, 101, 102, 104, 119); // Bruiser
 
-                pstmt.executeBatch();
-            }
+            // Fire
+            addMon(pstmt, 3, "Boombero", "Fire", 420, 140, 60, 95, 105, 106, 107, 108); // Glass Cannon
+            addMon(pstmt, 4, "Apoyet", "Fire", 400, 110, 80, 120, 105, 106, 124, 108); // Speedster
+
+            // Grass
+            addMon(pstmt, 5, "Dahmoe", "Grass", 500, 95, 110, 55, 109, 110, 111, 112); // Tank
+            addMon(pstmt, 6, "Santan", "Grass", 440, 125, 70, 90, 109, 110, 112, 120); // Controller
+
+            // Bug
+            addMon(pstmt, 7, "Guyum", "Bug", 380, 100, 160, 40, 113, 114, 115, 116); // Physical Wall
+            addMon(pstmt, 8, "Salagoo", "Bug", 460, 115, 90, 75, 113, 114, 116, 103); // Balanced
+
+            // Lightning
+            addMon(pstmt, 9, "Lectric", "Lightning", 390, 120, 55, 150, 117, 118, 119, 120); // Assassin
+            addMon(pstmt, 10, "Sparky", "Lightning", 410, 145, 65, 100, 117, 118, 119, 121); // Nuker
+
+            // Ground
+            addMon(pstmt, 11, "Sawalee", "Ground", 600, 105, 130, 30, 133, 134, 135, 115); // Super Tank
+            addMon(pstmt, 12, "Elypante", "Ground", 550, 135, 110, 45, 133, 134, 136, 104); // Juggernaut
+
+            // Flying
+            addMon(pstmt, 13, "Pannykee", "Flying", 400, 110, 75, 130, 121, 122, 123, 124); // Scout
+            addMon(pstmt, 14, "Agilean", "Flying", 430, 130, 70, 125, 121, 122, 107, 124); // Striker
+
+            // Ice
+            addMon(pstmt, 15, "Sorbeetez", "Ice", 450, 125, 85, 80, 125, 126, 127, 128); // Mage
+            addMon(pstmt, 16, "Gimalam", "Ice", 480, 110, 100, 60, 125, 126, 128, 103); // Utility
+
+            // Dark
+            addMon(pstmt, 17, "Alailaw", "Dark", 380, 155, 45, 115, 129, 130, 131, 132); // High Risk/Reward
+            addMon(pstmt, 18, "Milidam", "Dark", 500, 110, 90, 70, 129, 130, 132, 112); // Drain Tank
+
+            pstmt.executeBatch();
         }
     }
     
-    // Helper methods for insertion
-    private void insertAbility(PreparedStatement pstmt, int id, String name, String desc, String type) throws SQLException {
-        pstmt.setInt(1, id);
-        pstmt.setString(2, name);
-        pstmt.setString(3, desc);
-        pstmt.setString(4, type);
-        pstmt.addBatch();
+    private void addAbil(PreparedStatement p, int id, String n, String d, String t) throws SQLException {
+        p.setInt(1, id); p.setString(2, n); p.setString(3, d); p.setString(4, t); p.addBatch();
     }
     
-    private void insertMonster(PreparedStatement pstmt, int id, String name, String type, int hp, int atk, int def, int spd, int abil1Id, int abil2Id) throws SQLException {
-        pstmt.setInt(1, id);
-        pstmt.setString(2, name);
-        pstmt.setString(3, type);
-        pstmt.setInt(4, hp);
-        pstmt.setInt(5, atk);
-        pstmt.setInt(6, def);
-        pstmt.setInt(7, spd);
-        pstmt.setInt(8, abil1Id);
-        pstmt.setInt(9, abil2Id);
-        pstmt.addBatch();
+    private void addMon(PreparedStatement p, int id, String n, String t, int hp, int atk, int def, int spd, int a1, int a2, int a3, int a4) throws SQLException {
+        p.setInt(1, id); p.setString(2, n); p.setString(3, t); p.setInt(4, hp); p.setInt(5, atk); p.setInt(6, def); p.setInt(7, spd); 
+        p.setInt(8, a1); p.setInt(9, a2); p.setInt(10, a3); p.setInt(11, a4); p.addBatch();
     }
 
     private int getRowCount(Connection conn, String tableName) throws SQLException {
         String sql = "SELECT COUNT(*) FROM " + tableName;
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt(1);
         }
         return 0;
     }
 
-    /**
-     * Retrieves all Monster objects with their associated Ability objects from the database.
-     */
     public List<Monster> getAllMonsters() {
-        // --- FIXED SQL QUERY: Removed the extra 'JOIN' ---
-        String sql = "SELECT m.*, a1.id AS a1_id, a1.name AS a1_name, a1.description AS a1_desc, a1.type AS a1_type, "
-                   + "a2.id AS a2_id, a2.name AS a2_name, a2.description AS a2_desc, a2.type AS a2_type "
+        String sql = "SELECT m.*, "
+                   + "a1.id AS a1id, a1.name AS a1n, a1.description AS a1d, a1.type AS a1t, "
+                   + "a2.id AS a2id, a2.name AS a2n, a2.description AS a2d, a2.type AS a2t, "
+                   + "a3.id AS a3id, a3.name AS a3n, a3.description AS a3d, a3.type AS a3t, "
+                   + "a4.id AS a4id, a4.name AS a4n, a4.description AS a4d, a4.type AS a4t "
                    + "FROM Monster m "
-                   + "INNER JOIN Ability a1 ON m.ability1_id = a1.id "
-                   + "INNER JOIN Ability a2 ON m.ability2_id = a2.id"; // <--- CORRECTED
+                   + "JOIN Ability a1 ON m.a1 = a1.id JOIN Ability a2 ON m.a2 = a2.id "
+                   + "JOIN Ability a3 ON m.a3 = a3.id JOIN Ability a4 ON m.a4 = a4.id";
 
         List<Monster> monsters = new ArrayList<>();
-
         try (Connection conn = connect()) {
-            // New check to prevent NPE here too
             if (conn == null) return monsters;
-            
-            try (Statement stmt  = conn.createStatement();
-                 ResultSet rs    = stmt.executeQuery(sql)){
-
+            try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
                 while (rs.next()) {
-                    // 1. Create Ability objects
-                    Ability ability1 = new Ability(
-                        rs.getInt("a1_id"), rs.getString("a1_name"), rs.getString("a1_desc"), rs.getString("a1_type")
-                    );
-                    Ability ability2 = new Ability(
-                        rs.getInt("a2_id"), rs.getString("a2_name"), rs.getString("a2_desc"), rs.getString("a2_type")
-                    );
+                    Ability ab1 = new Ability(rs.getInt("a1id"), rs.getString("a1n"), rs.getString("a1d"), rs.getString("a1t"));
+                    Ability ab2 = new Ability(rs.getInt("a2id"), rs.getString("a2n"), rs.getString("a2d"), rs.getString("a2t"));
+                    Ability ab3 = new Ability(rs.getInt("a3id"), rs.getString("a3n"), rs.getString("a3d"), rs.getString("a3t"));
+                    Ability ab4 = new Ability(rs.getInt("a4id"), rs.getString("a4n"), rs.getString("a4d"), rs.getString("a4t"));
                     
-                    // 2. Create Monster object using Ability objects
-                    Monster monster = new Monster(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("type"),
-                        rs.getInt("base_hp"),
-                        rs.getInt("base_atk"),
-                        rs.getInt("base_def"),
-                        rs.getInt("base_spd"),
-                        ability1,
-                        ability2
-                    );
-                    monsters.add(monster);
+                    monsters.add(new Monster(
+                        rs.getInt("id"), rs.getString("name"), rs.getString("type"),
+                        rs.getInt("base_hp"), rs.getInt("base_atk"), rs.getInt("base_def"), rs.getInt("base_spd"),
+                        ab1, ab2, ab3, ab4
+                    ));
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("Error retrieving monsters: " + e.getMessage());
-        }
+        } catch (SQLException e) { System.err.println("DB Error: " + e.getMessage()); }
         return monsters;
-    }
-
-    public static void main(String[] args) {
-        // Used for testing/initial setup
-        DatabaseManager db = new DatabaseManager();
-        db.initializeDatabase();
-        
-        List<Monster> allMonsters = db.getAllMonsters();
-        System.out.println("\n--- All Monsters from DB ---");
-        for (Monster m : allMonsters) {
-            System.out.println(m.getName() + " | Abilities: " + m.getAbilities().get(0).getName() + ", " + m.getAbilities().get(1).getName());
-        }
     }
 }

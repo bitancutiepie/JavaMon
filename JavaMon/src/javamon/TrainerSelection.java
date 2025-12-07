@@ -1,11 +1,24 @@
 package javamon;
 
 import javax.swing.*;
+import javax.swing.border.LineBorder;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.net.URL;
 
 public class TrainerSelection extends JFrame {
+
+    private String selectedTrainerClass = "ELEMENTALIST"; 
+    private JLabel floatingPreview; 
+    private JDialog confirmationDialog;
+
+    private static final Color DARK_BG = new Color(20, 20, 20);
+    private static final Color NEON_GOLD = new Color(255, 215, 0);
+    private static final Color NEON_CYAN = new Color(0, 255, 255);
+    private static final Font HEADER_FONT = new Font("Arial", Font.BOLD, 24);
+    private static final Font DESC_FONT = new Font("Arial", Font.PLAIN, 16);
+    private static final Font SUGGEST_FONT = new Font("Arial", Font.ITALIC, 14);
 
     public TrainerSelection() {
         setTitle("Trainer Selection");
@@ -14,207 +27,168 @@ public class TrainerSelection extends JFrame {
         setLocationRelativeTo(null);
         setResizable(false);
 
+        confirmationDialog = new JDialog(this, "Confirm Class", Dialog.ModalityType.APPLICATION_MODAL);
+        confirmationDialog.setSize(500, 480);
+        confirmationDialog.setLocationRelativeTo(this);
+        confirmationDialog.setUndecorated(true);
 
         JPanel bgPanel = new JPanel() {
-            private Image bg = new ImageIcon(
-                    getClass().getResource("/javamon/assets/trainerBG.png")
-            ).getImage();
-
-            @Override
+            private Image bg = AssetLoader.loadImage("/javamon/assets/trainerBG.png", "trainerBG.png");
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                g.drawImage(bg, 0, 0, getWidth(), getHeight(), this);
+                if(bg != null) g.drawImage(bg, 0, 0, getWidth(), getHeight(), this);
             }
         };
         bgPanel.setLayout(null);
         setContentPane(bgPanel);
 
-
-        // BORDER IMAGE (TOP LAYER)
-
-        ImageIcon borderIcon = new ImageIcon(
-                getClass().getResource("/javamon/assets/UPPERBORDERRR.png")
-        );
+        // Border
+        ImageIcon borderIcon = AssetLoader.loadIcon("/javamon/assets/UPPERBORDERRR.png", "UPPERBORDERRR.png");
         JLabel borderLabel = new JLabel(borderIcon);
         borderLabel.setBounds(0, -30, 1280, 200);
         bgPanel.add(borderLabel);
 
+        // Title Label
+        ImageIcon selectIcon = AssetLoader.loadIcon("/javamon/assets/SELECTED TRAINER CLASS BUTT.png", "SELECTED TRAINER CLASS BUTT.png");
+        JLabel selectLabel = new JLabel(selectIcon);
+        selectLabel.setBounds(1000, 155, 229, 94);
+        bgPanel.add(selectLabel);
+        bgPanel.setComponentZOrder(selectLabel, 1);
 
-        // SELECTED TRAINER CLASS LABEL
-
-        ImageIcon selectTrainerIcon = new ImageIcon(
-                getClass().getResource("/javamon/assets/SELECTED TRAINER CLASS BUTT.png")
-        );
-
-        JLabel selectTrainerLabel = new JLabel(selectTrainerIcon);
-        selectTrainerLabel.setBounds(1000, 155, 229, 94);
-        bgPanel.add(selectTrainerLabel);
-        bgPanel.setComponentZOrder(selectTrainerLabel, 1);
-
-
-        // RECTANGLE (preview background)
-
-        ImageIcon rectIcon;
-        URL rectUrl = getClass().getResource("/javamon/assets/RECTANGLE.png");
-        if (rectUrl != null) {
-            rectIcon = new ImageIcon(rectUrl);
-        } else {
-            // fallback to uploaded file path (user-provided)
-            rectIcon = new ImageIcon("/mnt/data/c7111513-60aa-42d3-93ba-c29139b50c70.png");
-        }
-
+        // Preview Rectangle
+        ImageIcon rectIcon = AssetLoader.loadIcon("/javamon/assets/RECTANGLE.png", "RECTANGLE.png");
         JLabel rectangle = new JLabel(rectIcon);
-        int rectW = rectIcon.getIconWidth() > 0 ? rectIcon.getIconWidth() : 198;
-        int rectH = rectIcon.getIconHeight() > 0 ? rectIcon.getIconHeight() : 371;
+        int rectW = (rectIcon != null) ? rectIcon.getIconWidth() : 198;
+        int rectH = (rectIcon != null) ? rectIcon.getIconHeight() : 371;
         rectangle.setBounds(1015, 253, rectW, rectH);
-        rectangle.setLayout(null);
         bgPanel.add(rectangle);
         bgPanel.setComponentZOrder(rectangle, 1);
 
-        // ============================
-        // FLOATING PREVIEW (shows same-size card over the rectangle)
-        // ============================
-        // Start invisible; we'll set icon & position on selection
-        JLabel floatingPreview = new JLabel();
+        floatingPreview = new JLabel();
         floatingPreview.setVisible(false);
-        // Add to bgPanel (so it can overlap rectangle); we'll position it later when a card is clicked
         bgPanel.add(floatingPreview);
-        // Ensure floatingPreview is above rectangle and other UI items
-        bgPanel.setComponentZOrder(floatingPreview, 0); // we'll bring it to front after adding other things
-        // after all adds we'll reorder appropriately below
+        bgPanel.setComponentZOrder(floatingPreview, 0); 
 
-
-        // BACK BUTTON
-
-        ImageIcon backIcon = new ImageIcon(
-                getClass().getResource("/javamon/assets/BACK BUTTON.png")
-        );
-
+        // Buttons
+        ImageIcon backIcon = AssetLoader.loadIcon("/javamon/assets/BACK BUTTON.png", "BACK BUTTON.png");
         JButton backButton = new JButton(backIcon);
         backButton.setBounds(20, 630, 204, 84);
-        backButton.setBorderPainted(false);
-        backButton.setContentAreaFilled(false);
-        backButton.setFocusPainted(false);
-        backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        backButton.addActionListener(e -> {
-            System.out.println("Back button clicked! Returning to main menu...");
-            MainMenu menu = new MainMenu();
-            menu.setVisible(true);
-            this.dispose();
-        });
-
+        styleButton(backButton);
+        backButton.addActionListener(e -> { new MainMenu(); dispose(); });
         bgPanel.add(backButton);
-        bgPanel.setComponentZOrder(backButton, 1);
 
-        // ============================
-        // PROCEED BUTTON
-        // ============================
-        ImageIcon proceedIcon = new ImageIcon(
-                getClass().getResource("/javamon/assets/PROCEED BUTTON.png")
-        );
+        ImageIcon proceedIcon = AssetLoader.loadIcon("/javamon/assets/PROCEED BUTTON.png", "PROCEED BUTTON.png");
         JButton proceedButton = new JButton(proceedIcon);
-        proceedButton.setBounds(1016, 630,
-                proceedIcon.getIconWidth(),
-                proceedIcon.getIconHeight());
-
-        proceedButton.setBorderPainted(false);
-        proceedButton.setContentAreaFilled(false);
-        proceedButton.setFocusPainted(false);
-        proceedButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
+        proceedButton.setBounds(1016, 630, proceedIcon != null ? proceedIcon.getIconWidth() : 200, proceedIcon != null ? proceedIcon.getIconHeight() : 80);
+        styleButton(proceedButton);
         proceedButton.addActionListener(e -> {
-            System.out.println("Proceed button clicked!");
-            DraftSelection draft = new DraftSelection();
-            draft.setVisible(true);
-            this.dispose();
+            new DraftSelection(selectedTrainerClass);
+            dispose();
         });
-
         bgPanel.add(proceedButton);
-        bgPanel.setComponentZOrder(proceedButton, 1);
 
-        // Reorder floatingPreview to be above rectangle and other components
-        // (setComponentZOrder: lower index = on top; adjust to ensure floatingPreview is top-most)
-        bgPanel.setComponentZOrder(borderLabel, bgPanel.getComponentCount()-1); // send border to back
+        // Z-Ordering
+        bgPanel.setComponentZOrder(borderLabel, bgPanel.getComponentCount()-1);
         bgPanel.setComponentZOrder(rectangle, bgPanel.getComponentCount()-2);
-        bgPanel.setComponentZOrder(selectTrainerLabel, bgPanel.getComponentCount()-3);
-        bgPanel.setComponentZOrder(proceedButton, bgPanel.getComponentCount()-4);
-        bgPanel.setComponentZOrder(backButton, bgPanel.getComponentCount()-5);
-        // finally bring floatingPreview to front
-        bgPanel.setComponentZOrder(floatingPreview, 0);
 
-        // ============================
-        // TRAINER CARDS (click to show floating preview)
-        // ============================
+        // Trainer Cards
         String[] trainers = {"ELEMENTALIST", "STRATEGIST", "AGGRESSOR", "BEASTMASTER", "MYSTIC"};
-        int[][] positions = {
-                {26, 100, 267, 441},// elementalist
-                {325, 95, 302, 456}, // strategist
-                {637, 89, 298, 467},// aggressor
-                {195, 320, 228, 460}, // beastmaster
-                {502, 328, 270, 441} // mystic
-        };
+        int[][] positions = {{26, 100, 267, 441}, {325, 95, 302, 456}, {637, 89, 298, 467}, {195, 320, 228, 460}, {502, 328, 270, 441}};
 
         for (int i = 0; i < trainers.length; i++) {
-            String trainer = trainers[i];
-            int x = positions[i][0];
-            int y = positions[i][1];
-            int w = positions[i][2];
-            int h = positions[i][3];
-
-            ImageIcon icon;
-            URL iconUrl = getClass().getResource("/javamon/assets/" + trainer + ".png");
-            if (iconUrl != null) {
-                icon = new ImageIcon(iconUrl);
-            } else {
-                icon = new ImageIcon(new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB));
-            }
-
-            JButton trainerButton = new JButton(icon);
-            trainerButton.setBounds(x, y, w, h);
-            trainerButton.setBorderPainted(false);
-            trainerButton.setContentAreaFilled(false);
-            trainerButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-            final ImageIcon buttonIcon = icon; // capture for listener
-
-            trainerButton.addActionListener(e -> {
-                System.out.println(trainer + " selected!");
-
-                // Use the same icon as the button (so it "looks like" the card on the left)
-                ImageIcon previewIcon = buttonIcon;
-
-                // compute position so floating preview is centered over the rectangle
-                int fw = previewIcon.getIconWidth();
-                int fh = previewIcon.getIconHeight();
-
-                // if icon has invalid dimensions, fallback to a reasonable size
-                if (fw <= 0) fw = w;
-                if (fh <= 0) fh = h;
-
-                int rectX = rectangle.getX();
-                int rectY = rectangle.getY();
-                int rectWidth = rectangle.getWidth();
-                int rectHeight = rectangle.getHeight();
-
-                int fx = rectX + (rectWidth - fw) / 2;
-                int fy = rectY + (rectHeight - fh) / 2;
-
-                // set icon and bounds on the floating preview label
-                floatingPreview.setIcon(previewIcon);
-                floatingPreview.setBounds(fx, fy, fw, fh);
-                floatingPreview.setVisible(true);
-
-                // bring floatingPreview to front so it overlaps everything
-                bgPanel.setComponentZOrder(floatingPreview, 0);
-                bgPanel.revalidate();
-                bgPanel.repaint();
-            });
-
-            bgPanel.add(trainerButton);
-            bgPanel.setComponentZOrder(trainerButton, 1);
+            String tName = trainers[i];
+            int[] pos = positions[i];
+            ImageIcon icon = AssetLoader.loadIcon("/javamon/assets/" + tName + ".png", tName + ".png");
+            
+            JButton btn = new JButton(icon);
+            btn.setBounds(pos[0], pos[1], pos[2], pos[3]);
+            styleButton(btn);
+            
+            btn.addActionListener(e -> showConfirmationDialog(tName, icon, pos[2], pos[3], rectangle));
+            bgPanel.add(btn);
+            bgPanel.setComponentZOrder(btn, 1);
         }
 
         setVisible(true);
+    }
+    
+    private void styleButton(JButton b) {
+        b.setBorderPainted(false); b.setContentAreaFilled(false); b.setFocusPainted(false); b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    }
+    
+    // --- CONFIRMATION POPUP ---
+    private void showConfirmationDialog(String trainerName, ImageIcon icon, int w, int h, JLabel rectangle) {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(DARK_BG); panel.setBorder(new LineBorder(NEON_GOLD, 3));
+        
+        JLabel header = new JLabel("CONFIRM CLASS", SwingConstants.CENTER);
+        header.setFont(HEADER_FONT); header.setForeground(NEON_GOLD);
+        header.setBorder(BorderFactory.createEmptyBorder(15, 0, 10, 0));
+        panel.add(header, BorderLayout.NORTH);
+        
+        JPanel content = new JPanel(); content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setOpaque(false); content.setBorder(BorderFactory.createEmptyBorder(10, 30, 20, 30));
+        
+        JLabel nameLabel = new JLabel(trainerName, SwingConstants.CENTER);
+        nameLabel.setFont(new Font("Arial", Font.BOLD, 36)); nameLabel.setForeground(Color.WHITE); nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        content.add(nameLabel); content.add(Box.createVerticalStrut(25));
+        
+        JLabel descHeader = new JLabel("CLASS PERK", SwingConstants.CENTER);
+        descHeader.setFont(new Font("Arial", Font.BOLD, 14)); descHeader.setForeground(NEON_GOLD); descHeader.setAlignmentX(Component.CENTER_ALIGNMENT);
+        content.add(descHeader);
+        content.add(createCenteredTextPane(getClassDescription(trainerName), DESC_FONT, Color.LIGHT_GRAY));
+        content.add(Box.createVerticalStrut(25));
+
+        JLabel stratHeader = new JLabel("STRATEGY GUIDE", SwingConstants.CENTER);
+        stratHeader.setFont(new Font("Arial", Font.BOLD, 14)); stratHeader.setForeground(NEON_CYAN); stratHeader.setAlignmentX(Component.CENTER_ALIGNMENT);
+        content.add(stratHeader);
+        JTextPane suggest = createCenteredTextPane(getClassSuggestion(trainerName), SUGGEST_FONT, Color.WHITE);
+        suggest.setBackground(new Color(30, 30, 45)); suggest.setBorder(BorderFactory.createCompoundBorder(new LineBorder(NEON_CYAN, 1, true), BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+        content.add(suggest);
+        panel.add(content, BorderLayout.CENTER);
+        
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 15)); btnPanel.setOpaque(false);
+        JButton confirm = new JButton(" SELECT "); confirm.setBackground(new Color(50, 200, 50)); confirm.setForeground(Color.WHITE); confirm.setFocusPainted(false);
+        JButton cancel = new JButton(" CANCEL "); cancel.setBackground(new Color(200, 50, 50)); cancel.setForeground(Color.WHITE); cancel.setFocusPainted(false);
+        
+        confirm.addActionListener(e -> { selectedTrainerClass = trainerName; updatePreview(icon, w, h, rectangle); confirmationDialog.dispose(); });
+        cancel.addActionListener(e -> confirmationDialog.dispose());
+        
+        btnPanel.add(confirm); btnPanel.add(cancel); panel.add(btnPanel, BorderLayout.SOUTH);
+        confirmationDialog.setContentPane(panel); confirmationDialog.revalidate(); confirmationDialog.repaint(); confirmationDialog.setVisible(true);
+    }
+    
+    private JTextPane createCenteredTextPane(String text, Font font, Color color) {
+        JTextPane pane = new JTextPane(); pane.setText(text); pane.setFont(font); pane.setForeground(color); pane.setBackground(DARK_BG); pane.setEditable(false); pane.setFocusable(false); pane.setOpaque(true);
+        StyledDocument doc = pane.getStyledDocument(); SimpleAttributeSet center = new SimpleAttributeSet(); StyleConstants.setAlignment(center, StyleConstants.ALIGN_CENTER); doc.setParagraphAttributes(0, doc.getLength(), center, false);
+        pane.setAlignmentX(Component.CENTER_ALIGNMENT); return pane;
+    }
+    
+    private String getClassDescription(String name) {
+        if(name.equals("ELEMENTALIST")) return "Bonus effectiveness on advantage attacks (+0.5x Multiplier).";
+        if(name.equals("STRATEGIST")) return "All healing and defensive abilities are 25% better.";
+        if(name.equals("AGGRESSOR")) return "Attacks deal 20% more damage, but defenses are weaker.";
+        if(name.equals("BEASTMASTER")) return "When HP < 50%, Attack and Speed increase by 20%.";
+        if(name.equals("MYSTIC")) return "Increases the chance of status effects by +20%.";
+        return "Unknown Class";
+    }
+
+    private String getClassSuggestion(String name) {
+        if(name.equals("ELEMENTALIST")) return "Draft different Types (Fire, Water, Lightning) to cover all weaknesses. Best for offensive players.";
+        if(name.equals("STRATEGIST")) return "Best with Tanks like Guyum or Healers like Wilkeens. Stall and outlast your opponent!";
+        if(name.equals("AGGRESSOR")) return "Draft Fast Sweepers like Lectric or Alailaw. Kill them before they hit you!";
+        if(name.equals("BEASTMASTER")) return "Works well with Bulky attackers like Sawalee. Survive a hit, then get angry!";
+        if(name.equals("MYSTIC")) return "Pick Disruptors like Santan (Stun) or Sorbeetez (Freeze) to lock down enemies.";
+        return "Choose wisely.";
+    }
+
+    private void updatePreview(ImageIcon icon, int w, int h, JLabel rectangle) {
+        if(icon == null) return;
+        int fw = icon.getIconWidth(), fh = icon.getIconHeight();
+        if (fw <= 0) fw = w; if (fh <= 0) fh = h;
+        int rectX = rectangle.getX(), rectY = rectangle.getY(), rectW = rectangle.getWidth(), rectH = rectangle.getHeight();
+        int fx = rectX + (rectW - fw) / 2, fy = rectY + (rectH - fh) / 2;
+        floatingPreview.setIcon(icon); floatingPreview.setBounds(fx, fy, fw, fh); floatingPreview.setVisible(true);
+        this.getContentPane().setComponentZOrder(floatingPreview, 0); this.revalidate(); this.repaint();
     }
 }
