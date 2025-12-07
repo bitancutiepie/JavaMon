@@ -32,7 +32,7 @@ public class GameWindow extends JFrame {
         
         ImageIcon jmon1 = new ImageIcon(getClass().getResource("/javamon/assets/ally_apoyet.png"));
         JLabel jMon1 = new JLabel(jmon1);
-        jMon1.setBounds(95, 234, 384, 345);
+        jMon1.setBounds(95, 239, 384, 345);
         // Add to panel
         bgPanel.add(jMon1);
         
@@ -54,7 +54,42 @@ public class GameWindow extends JFrame {
         // Add to panel
         bgPanel.add(platform2);
         
+        ImageIcon fightIcon = new ImageIcon(getClass().getResource("/javamon/assets/FIGHTBTN.png"));
+        JButton fightButton = new JButton(fightIcon);
+        fightButton.setBorderPainted(false);
+        fightButton.setContentAreaFilled(false);
+        fightButton.setFocusPainted(false);
+        fightButton.setBounds(650, 600, fightIcon.getIconWidth(), fightIcon.getIconHeight());
+        bgPanel.add(fightButton);
         
+        ImageIcon jMonIcon = new ImageIcon(getClass().getResource("/javamon/assets/JAVAMONBTN.png"));
+        JButton jMonButton = new JButton(jMonIcon);
+        jMonButton.setBorderPainted(false);
+        jMonButton.setContentAreaFilled(false);
+        jMonButton.setFocusPainted(false);
+        jMonButton.setBounds(920, 600, jMonIcon.getIconWidth(), jMonIcon.getIconHeight());
+        bgPanel.add(jMonButton);
+        
+        ImageIcon helpIcon = new ImageIcon(getClass().getResource("/javamon/assets/HELPBTN.png"));
+        JButton helpButton = new JButton(helpIcon);
+        helpButton.setBorderPainted(false);
+        helpButton.setContentAreaFilled(false);
+        helpButton.setFocusPainted(false);
+        helpButton.setBounds(780, 660, helpIcon.getIconWidth(), helpIcon.getIconHeight());
+        bgPanel.add(helpButton);
+        
+        JLabel txtWhat = new JLabel("What will JavaMon do?", SwingConstants.LEFT);
+        txtWhat.setBounds(170, 625, 800, 50);
+        txtWhat.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 35));
+        txtWhat.setForeground(java.awt.Color.BLACK);
+        txtWhat.setOpaque(false);
+        bgPanel.add(txtWhat);
+        
+        ImageIcon textboxIcon = new ImageIcon(getClass().getResource("/javamon/assets/TEXTBOX.png"));
+        JLabel textBorder = new JLabel(textboxIcon);
+        textBorder.setBounds(160, 605, textboxIcon.getIconWidth(), textboxIcon.getIconHeight());
+        // Add to panel
+        bgPanel.add(textBorder);
         
         ImageIcon lBoxIcon = new ImageIcon(getClass().getResource("/javamon/assets/LOWER_TEXTBOX.png"));
         JLabel txtbox = new JLabel(lBoxIcon);
@@ -67,20 +102,17 @@ public class GameWindow extends JFrame {
         bgPanel.add(uBoxMon1);
         
         JLabel txtFloor = new JLabel("FLOOR 1", SwingConstants.LEFT);
-        txtFloor.setBounds(20, 548, 300, 40);
+        txtFloor.setBounds(25, 545, 300, 40);
         txtFloor.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 35));
         txtFloor.setForeground(java.awt.Color.BLACK);
         txtFloor.setOpaque(false);
         bgPanel.add(txtFloor);
         bgPanel.setComponentZOrder(txtFloor, 0);
         
-        JLabel txtWhat = new JLabel("What will JavaMon do?", SwingConstants.LEFT);
-        txtWhat.setBounds(170, 625, 800, 50);
-        txtWhat.setFont(new java.awt.Font("Monospaced", java.awt.Font.BOLD, 35));
-        txtWhat.setForeground(java.awt.Color.BLACK);
-        txtWhat.setOpaque(false);
-        bgPanel.add(txtWhat);
+        
         bgPanel.setComponentZOrder(txtWhat, 0);
+        
+        
         
         JLabel txtJName1 = new JLabel("JavaMon1", SwingConstants.LEFT);
         txtJName1.setBounds(40, 50, 300, 40);
