@@ -619,44 +619,11 @@ public class GameWindow extends JFrame {
     private void handlePlayerFaint() {
         animateFaint(jMon1Label, () -> {
             txtWhat.setText(activePlayerMon.getName() + " fainted!");
-            boolean lost = true;
-            for (Monster m : playerTeam) {
-                if (!m.isFainted()) { lost = false; break; }
-            }
-
-            if (lost) {
-                // Show GameOver screen and then close this GameWindow
-                SwingUtilities.invokeLater(() -> {
-                    // Create GameOver and pass a callback that opens MainMenu when MAIN MENU is clicked
-                    GameOver go = new GameOver(currentFloor, () -> {
-                        SwingUtilities.invokeLater(() -> {
-                            try {
-                                // Replace MainMenu with your actual main/menu class if different
-                                MainMenu main = new MainMenu();
-                                main.setVisible(true);
-                            } catch (Throwable t) {
-                                // If you don't have a MainMenu class yet, handle gracefully
-                                System.out.println("MainMenu class not found. Provide a callback or implement MainMenu.");
-                            }
-                        });
-                    });
-                    go.setVisible(true);
-                });
-
-                // Dispose the GameWindow (do this on EDT)
-                SwingUtilities.invokeLater(() -> {
-                    GameWindow.this.dispose();
-                });
-
-            } else {
-                // Player has another unfainted monster — open the switch UI
-                updateSwitchPanel();
-                showOverlay(switchPanel);
-                isTurnInProgress = false;
-            }
+            boolean lost = true; for(Monster m : playerTeam) if(!m.isFainted()) lost = false;
+            if(lost) { JOptionPane.showMessageDialog(this, "GAME OVER\nFloors Cleared: " + currentFloor); System.exit(0); }
+            else { updateSwitchPanel(); showOverlay(switchPanel); isTurnInProgress = false; }
         });
     }
-			
 
     // --- STATE UPDATERS ---
 
