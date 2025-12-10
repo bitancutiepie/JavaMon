@@ -254,7 +254,7 @@ public class GameWindow extends JFrame {
                 public void mouseEntered(MouseEvent e) { showAbilityTooltip(a, btn, effectiveness); }
                 public void mouseExited(MouseEvent e) { infoOverlay.setVisible(false); }
             });
-            btn.addActionListener(e -> { if (!isTurnInProgress) initiateCombatRound(a); });
+            btn.addActionListener(e -> { if (!isTurnInProgress) { initiateCombatRound(a); } });
             fightPanel.add(btn);
         }
         
@@ -268,7 +268,7 @@ public class GameWindow extends JFrame {
             public void mouseEntered(MouseEvent e) { showAbilityTooltip(secret, secretBtn, 1.0); }
             public void mouseExited(MouseEvent e) { infoOverlay.setVisible(false); }
         });
-        secretBtn.addActionListener(e -> { if (!isTurnInProgress) initiateCombatRound(secret); }); 
+        secretBtn.addActionListener(e -> { if (!isTurnInProgress) { initiateCombatRound(secret); } }); 
         fightPanel.add(secretBtn);
 
         JButton cancel = new JButton("CANCEL"); cancel.setFont(UI_FONT); cancel.setBackground(Color.DARK_GRAY); cancel.setForeground(Color.WHITE); cancel.addActionListener(e -> fightPanel.setVisible(false)); fightPanel.add(cancel);
@@ -474,63 +474,290 @@ public class GameWindow extends JFrame {
         int direction = isPlayer ? 1 : -1;
         int originalX = isPlayer ? PLAYER_X : ENEMY_X;
         int originalY = isPlayer ? PLAYER_Y : ENEMY_Y;
-        atkLabel.setLocation(originalX, originalY);
-
-        Timer lungeOut = new Timer(10, null);
-        lungeOut.addActionListener(e -> {
-            atkLabel.setLocation(atkLabel.getX() + (5 * direction), atkLabel.getY());
-            if (Math.abs(atkLabel.getX() - originalX) > 50) {
-                lungeOut.stop();
-                
-                int preDefHp = defender.getCurrentHP();
-                int preAtkHp = attacker.getCurrentHP(); 
-                
-                String log = AbilityLogic.execute(move, attacker, defender, isPlayer ? playerTeam : enemyTeam, isPlayer ? trainerClass : "ENEMY");
-                
-                int damageTaken = preDefHp - defender.getCurrentHP();
-                int selfHeal = attacker.getCurrentHP() - preAtkHp;
-                
-                if (log.contains("[CRIT]")) { flashScreen(); shakeComponent(defLabel, true); } 
-                else if (damageTaken > 0) { 
-                    animateHitFlash(defLabel, new Color(255, 0, 0, 150)); 
-                    shakeComponent(defLabel, false); 
-                }
-                
-                if (damageTaken > 0) showFloatingText("-"+damageTaken, DAMAGE_RED, defLabel); 
-                else if (selfHeal > 0) showFloatingText("HEAL", NEON_GREEN, atkLabel);
-                else if (log.contains("Rose") || log.contains("Increased")) showFloatingText("BUFF", NEON_CYAN, atkLabel);
-                else showFloatingText("MISS", Color.GRAY, defLabel);
-                
-                Timer lungeBack = new Timer(10, null);
-                lungeBack.addActionListener(ev -> {
-                    atkLabel.setLocation(atkLabel.getX() - (5 * direction), atkLabel.getY());
-                    if ((isPlayer && atkLabel.getX() <= originalX) || (!isPlayer && atkLabel.getX() >= originalX)) {
-                        lungeBack.stop(); atkLabel.setLocation(originalX, originalY);
-                        
-                        txtJLives1.setText(activePlayerMon.getCurrentHP() + " / " + activePlayerMon.getBaseHP());
-                        txtJLives2.setText(activeEnemyMon.getCurrentHP() + " / " + activeEnemyMon.getBaseHP());
-
-                        Runnable afterHeal = () -> {
-                             defBar.slideHealth(defender.getCurrentHP(), defender.getBaseHP(), () -> {
-                                 txtWhat.setText(log.replace("[CRIT] ", ""));
-                                 updateBattleState(); 
-                                 Timer pause = new Timer(1000, evt -> { if (onComplete != null) onComplete.run(); });
-                                 pause.setRepeats(false); pause.start();
-                             });
-                        };
-                        
-                        if(selfHeal > 0 || damageTaken > 0) {
-                             atkBar.slideHealth(attacker.getCurrentHP(), attacker.getBaseHP(), afterHeal);
-                        } else {
-                             afterHeal.run();
-                        }
-                    }
-                }); lungeBack.start();
+        
+        // --- ANTICIPATION: WIND UP BEFORE ATTACK ---
+        Timer windUp = new Timer(15, null);
+        final int[] windUpFrame = {0};
+        windUp.addActionListener(e -> {
+            windUpFrame[0]++;
+            // Squash and stretch effect
+            if(windUpFrame[0] < 8) {
+                atkLabel.setLocation(originalX - (direction * 3 * windUpFrame[0]), originalY);
             }
-        }); lungeOut.start();
+            if(windUpFrame[0] >= 8) {
+                windUp.stop();
+                // --- LAUNCH FORWARD ---
+                performLunge(atkLabel, defLabel, attacker, defender, move, isPlayer, 
+                            originalX, originalY, direction, atkBar, defBar, onComplete);
+            }
+        });
+        windUp.start();
     }
     
-    // --- ANIMATIONS ---
+    private void performLunge(FadableSprite atkLabel, FadableSprite defLabel, Monster attacker, 
+            Monster defender, Ability move, boolean isPlayer,
+            int originalX, int originalY, int direction,
+            SmoothBatteryBar atkBar, SmoothBatteryBar defBar, Runnable onComplete) {
+
+        Timer lungeOut = new Timer(8, null);
+        final int[] speed = {10}; // Start fast
+
+        lungeOut.addActionListener(e -> {
+            atkLabel.setLocation(atkLabel.getX() + (speed[0] * direction), atkLabel.getY() - 1); // Slight hop
+            speed[0] = Math.max(3, speed[0] - 1); // Decelerate
+
+            if (Math.abs(atkLabel.getX() - originalX) > 80) {
+                lungeOut.stop();
+
+                // --- IMPACT MOMENT ---
+                int preDefHp = defender.getCurrentHP();
+                int preAtkHp = attacker.getCurrentHP(); 
+
+                String log = AbilityLogic.execute(move, attacker, defender, 
+                                                isPlayer ? playerTeam : enemyTeam, 
+                                                isPlayer ? trainerClass : "ENEMY");
+
+                int damageTaken = preDefHp - defender.getCurrentHP();
+                int selfHeal = attacker.getCurrentHP() - preAtkHp;
+
+                // --- ENHANCED HIT REACTIONS ---
+                if (log.contains("[CRIT]")) { 
+                   flashScreen();
+                   multiShake(defLabel, 18, 25); // Violent shake
+                   animateHitFlash(defLabel, new Color(255, 255, 0, 200)); // Yellow crit flash
+                   Timer delay = new Timer(100, evt -> {
+                       animateHitFlash(defLabel, new Color(255, 0, 0, 180));
+                       ((Timer)evt.getSource()).stop();
+                   });
+                   delay.setRepeats(false);
+                   delay.start();
+                } 
+                else if (damageTaken > 0) { 
+                   animateHitFlash(defLabel, new Color(255, 0, 0, 150)); 
+                   multiShake(defLabel, 12, 15); // Moderate shake
+                   // Add impact freeze frame
+                   Timer freeze = new Timer(80, evt -> ((Timer)evt.getSource()).stop());
+                   freeze.setRepeats(false);
+                   freeze.start();
+                }
+
+                // --- ENHANCED FLOATING TEXT ---
+                if (damageTaken > 0) {
+                   showEnhancedDamageText("-"+damageTaken, DAMAGE_RED, defLabel, log.contains("[CRIT]"));
+                } 
+                else if (selfHeal > 0) {
+                   showEnhancedFloatingText("+" + selfHeal, NEON_GREEN, atkLabel, true);
+                }
+                else if (log.contains("Rose") || log.contains("Increased")) {
+                   showEnhancedFloatingText("BOOST!", NEON_CYAN, atkLabel, false);
+                   animateStatBurst(atkLabel);
+                }
+                else if(log.contains("missed")) {
+                   showEnhancedFloatingText("MISS", Color.GRAY, defLabel, false);
+                } else if(damageTaken == 0) {
+                   showEnhancedFloatingText("NO EFFECT", Color.WHITE, defLabel, false);
+                }
+                
+                // --- BOUNCE BACK ---
+                Timer bounceBack = new Timer(8, null);
+                final int[] bounceSpeed = {3};
+
+                bounceBack.addActionListener(ev -> {
+                   atkLabel.setLocation(atkLabel.getX() - (bounceSpeed[0] * direction), 
+                                       atkLabel.getY() + 1);
+                   bounceSpeed[0] = Math.min(12, bounceSpeed[0] + 1); // Accelerate back
+                   
+                   if ((isPlayer && atkLabel.getX() <= originalX) || 
+                       (!isPlayer && atkLabel.getX() >= originalX)) {
+                       bounceBack.stop(); 
+                       atkLabel.setLocation(originalX, originalY);
+                       
+                       // --- SETTLE AND BOUNCE ---
+                       animateSettle(atkLabel, originalX, originalY, () -> {
+                           txtJLives1.setText(activePlayerMon.getCurrentHP() + " / " + activePlayerMon.getBaseHP());
+                           txtJLives2.setText(activeEnemyMon.getCurrentHP() + " / " + activeEnemyMon.getBaseHP());
+
+                           Runnable afterHeal = () -> {
+                               defBar.slideHealth(defender.getCurrentHP(), defender.getBaseHP(), () -> {
+                                   txtWhat.setText(log.replace("[CRIT] ", ""));
+                                   updateBattleState(); 
+                                   Timer pause = new Timer(1000, evt -> { 
+                                       if (onComplete != null) onComplete.run(); 
+                                   });
+                                   pause.setRepeats(false); 
+                                   pause.start();
+                               });
+                           };
+                           
+                           if(selfHeal > 0 || damageTaken > 0) {
+                               atkBar.slideHealth(attacker.getCurrentHP(), attacker.getBaseHP(), afterHeal);
+                           } else {
+                               afterHeal.run();
+                           }
+                       });
+                   }
+                }); 
+                bounceBack.start();
+            }
+        }); 
+        lungeOut.start();
+    }
+    
+    // --- ANIMATION HELPER METHODS (MOVED FROM INSIDE performLunge) ---
+    
+    private void multiShake(JComponent c, int duration, int intensity) {
+        final Point original = c.getLocation();
+        final Timer shakeTimer = new Timer(25, null); 
+        final int[] count = {0};
+        
+        shakeTimer.addActionListener(e -> {
+            int offsetX = (int)(Math.sin(count[0] * 0.8) * intensity) - (intensity/2);
+            int offsetY = (int)(Math.cos(count[0] * 0.6) * intensity/2);
+            c.setLocation(original.x + offsetX, original.y + offsetY);
+            
+            if (++count[0] > duration) { 
+                shakeTimer.stop(); 
+                c.setLocation(original); 
+            }
+        }); 
+        shakeTimer.start();
+    }
+
+    private void animateStatBurst(JComponent target) {
+        Point p = target.getLocation();
+        
+        for(int i = 0; i < 8; i++) {
+            JLabel particle = new JLabel("★");
+            particle.setFont(new Font("Arial", Font.BOLD, 24));
+            particle.setForeground(NEON_CYAN);
+            particle.setBounds(p.x + 150, p.y + 150, 30, 30);
+            layeredPane.add(particle, JLayeredPane.POPUP_LAYER);
+            
+            final double angle = (Math.PI * 2 * i) / 8;
+            final int[] life = {0};
+            
+            Timer burst = new Timer(20, null);
+            burst.addActionListener(e -> {
+                life[0]++;
+                int distance = life[0] * 4;
+                int newX = p.x + 150 + (int)(Math.cos(angle) * distance);
+                int newY = p.y + 150 + (int)(Math.sin(angle) * distance);
+                particle.setLocation(newX, newY);
+                
+                int alpha = Math.max(0, 255 - (life[0] * 12));
+                particle.setForeground(new Color(0, 255, 255, alpha));
+                
+                if(life[0] > 20) {
+                    burst.stop();
+                    layeredPane.remove(particle);
+                    layeredPane.repaint();
+                }
+            });
+            burst.start();
+        }
+    }
+
+    private void animateSettle(FadableSprite sprite, int targetX, int targetY, Runnable onComplete) {
+        final int[] bounceFrame = {0};
+        final int[] yOffset = {0};
+        
+        Timer settle = new Timer(20, null);
+        settle.addActionListener(e -> {
+            bounceFrame[0]++;
+            if(bounceFrame[0] < 5) {
+                yOffset[0] = 3;
+            } else if(bounceFrame[0] < 8) {
+                yOffset[0] = -2;
+            } else if(bounceFrame[0] < 10) {
+                yOffset[0] = 1;
+            } else {
+                yOffset[0] = 0;
+                settle.stop();
+                sprite.setLocation(targetX, targetY);
+                if(onComplete != null) onComplete.run();
+                return;
+            }
+            sprite.setLocation(targetX, targetY + yOffset[0]);
+        });
+        settle.start();
+    }
+
+    private void showEnhancedFloatingText(String text, Color color, JComponent target, boolean isHeal) {
+        JLabel floatLbl = new JLabel(text, SwingConstants.CENTER); 
+        floatLbl.setFont(new Font("Arial", Font.BOLD, 32)); 
+        floatLbl.setForeground(color);
+        
+        Point p = target.getLocation(); 
+        floatLbl.setBounds(p.x + 80, p.y + 100, 200, 50); 
+        layeredPane.add(floatLbl, JLayeredPane.POPUP_LAYER);
+        
+        final int[] alpha = {255};
+        final int[] frames = {0};
+        
+        Timer floatTimer = new Timer(30, null);
+        floatTimer.addActionListener(e -> {
+            frames[0]++;
+            floatLbl.setLocation(floatLbl.getX() + (isHeal ? 1 : 0), floatLbl.getY() - 2);
+            
+            if(frames[0] > 15) {
+                alpha[0] -= 15;
+                floatLbl.setForeground(new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, alpha[0])));
+            }
+            
+            if (alpha[0] <= 0) { 
+                floatTimer.stop(); 
+                layeredPane.remove(floatLbl); 
+                layeredPane.repaint(); 
+            }
+        }); 
+        floatTimer.start();
+    }
+
+    private void showEnhancedDamageText(String text, Color color, JComponent target, boolean isCrit) {
+        JLabel floatLbl = new JLabel(text, SwingConstants.CENTER); 
+        floatLbl.setFont(isCrit ? DMG_FONT.deriveFont(60f) : DMG_FONT); 
+        floatLbl.setForeground(color);
+        
+        if(isCrit) {
+            floatLbl.setBorder(BorderFactory.createLineBorder(NEON_GOLD, 2));
+        }
+        
+        Point p = target.getLocation(); 
+        floatLbl.setBounds(p.x + 50, p.y + 50, 250, 80); 
+        layeredPane.add(floatLbl, JLayeredPane.POPUP_LAYER);
+        
+        final float[] scale = {0.5f};
+        final int[] alpha = {255};
+        final int[] frames = {0};
+        
+        Timer floatTimer = new Timer(25, null);
+        floatTimer.addActionListener(e -> {
+            frames[0]++;
+            
+            // Pop in effect (frames 0-8)
+            if(frames[0] < 8) {
+                scale[0] += 0.1f;
+                floatLbl.setFont(floatLbl.getFont().deriveFont(DMG_FONT.getSize() * scale[0]));
+            }
+            // Hold (frames 8-20)
+            else if(frames[0] < 20) {
+                floatLbl.setLocation(floatLbl.getX(), floatLbl.getY() - 1);
+            }
+            // Fade out (frames 20+)
+            else {
+                floatLbl.setLocation(floatLbl.getX(), floatLbl.getY() - 3);
+                alpha[0] -= 12;
+                floatLbl.setForeground(new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, alpha[0])));
+            }
+            
+            if (alpha[0] <= 0) { 
+                floatTimer.stop(); 
+                layeredPane.remove(floatLbl); 
+                layeredPane.repaint(); 
+            }
+        }); 
+        floatTimer.start();
+    }
     
     private void animateHitFlash(FadableSprite sprite, Color flashColor) {
         sprite.flash(flashColor);
@@ -548,7 +775,18 @@ public class GameWindow extends JFrame {
     
     private void flashScreen() {
         flashPanel.setVisible(true);
-        Timer t = new Timer(50, e -> { flashPanel.setVisible(false); ((Timer)e.getSource()).stop(); });
+        final int[] pulses = {0};
+        
+        Timer t = new Timer(60, null);
+        t.addActionListener(e -> {
+            pulses[0]++;
+            flashPanel.setVisible(!flashPanel.isVisible());
+            
+            if(pulses[0] >= 4) {
+                flashPanel.setVisible(false);
+                t.stop();
+            }
+        });
         t.start();
     }
     
@@ -563,21 +801,54 @@ public class GameWindow extends JFrame {
     }
 
     private void animateSwitchIn(FadableSprite sprite, int targetX, Runnable onComplete) {
-        sprite.setAlpha(1.0f); sprite.setLocation(-400, sprite.getY()); 
-        Timer slideIn = new Timer(5, null);
+        sprite.setAlpha(0f); 
+        sprite.setLocation(targetX - 100, sprite.getY()); 
+        
+        Timer slideIn = new Timer(15, null);
+        final float[] alpha = {0f};
+        
         slideIn.addActionListener(e -> {
-            sprite.setLocation(sprite.getX() + 30, sprite.getY());
-            if (sprite.getX() >= targetX) { sprite.setLocation(targetX, sprite.getY()); slideIn.stop(); onComplete.run(); }
-        }); slideIn.start();
+            sprite.setLocation(sprite.getX() + 8, sprite.getY());
+            alpha[0] += 0.08f;
+            sprite.setAlpha(Math.min(1.0f, alpha[0]));
+            
+            if (sprite.getX() >= targetX) { 
+                sprite.setLocation(targetX, sprite.getY()); 
+                sprite.setAlpha(1.0f);
+                slideIn.stop(); 
+                
+                // Add landing effect
+                animateSettle(sprite, targetX, sprite.getY(), onComplete);
+            }
+        }); 
+        slideIn.start();
+    }
+    private void animateFaint(FadableSprite sprite, Runnable onComplete) {
+        Timer sink = new Timer(20, null); 
+        final float[] opacity = {1.0f};
+        final int[] rotation = {0};
+        final Point original = sprite.getLocation();
+        
+        sink.addActionListener(e -> {
+            sprite.setLocation(sprite.getX(), sprite.getY() + 4); 
+            opacity[0] -= 0.03f; 
+            sprite.setAlpha(opacity[0]);
+            
+            // Slight wobble as it faints
+            rotation[0] += 5;
+            int wobble = (int)(Math.sin(rotation[0] * 0.1) * 10);
+            sprite.setLocation(sprite.getX() + wobble, sprite.getY());
+            
+            if (opacity[0] <= 0.05f) { 
+                sink.stop(); 
+                sprite.setAlpha(0f); 
+                sprite.setLocation(original);
+                onComplete.run(); 
+            }
+        }); 
+        sink.start();
     }
 
-    private void animateFaint(FadableSprite sprite, Runnable onComplete) {
-        Timer sink = new Timer(20, null); final float[] opacity = {1.0f};
-        sink.addActionListener(e -> {
-            sprite.setLocation(sprite.getX(), sprite.getY() + 3); opacity[0] -= 0.02f; sprite.setAlpha(opacity[0]);
-            if (opacity[0] <= 0.05f) { sink.stop(); sprite.setAlpha(0f); onComplete.run(); }
-        }); sink.start();
-    }
 
     private void animateSwitchOut(FadableSprite sprite, Runnable onComplete) {
         Timer slideOut = new Timer(5, null);
