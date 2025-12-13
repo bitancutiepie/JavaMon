@@ -25,7 +25,6 @@ public class DatabaseManager {
         if (conn == null) return;
         
         String createAbilityTable = "CREATE TABLE IF NOT EXISTS Ability (id INTEGER PRIMARY KEY, name TEXT, description TEXT, type TEXT);";
-        // Updated Table Schema for 4 Abilities
         String createMonsterTable = "CREATE TABLE IF NOT EXISTS Monster (id INTEGER PRIMARY KEY, name TEXT, type TEXT, base_hp INTEGER, base_atk INTEGER, base_def INTEGER, base_spd INTEGER, "
                 + "a1 INTEGER, a2 INTEGER, a3 INTEGER, a4 INTEGER, "
                 + "FOREIGN KEY(a1) REFERENCES Ability(id), FOREIGN KEY(a2) REFERENCES Ability(id), "
@@ -44,14 +43,14 @@ public class DatabaseManager {
     }
 
     private void populateInitialData(Connection conn) throws SQLException {
-        System.out.println("Applying Strategic Balance Patch v3.0 (4-Move Update)...");
+        System.out.println("Applying RPG Balance Patch v4.0 (Progressive Stats)...");
         String insertAbility = "INSERT INTO Ability (id, name, description, type) VALUES (?, ?, ?, ?)";
         
         try (PreparedStatement pstmt = conn.prepareStatement(insertAbility)) {
             // --- WATER ---
             addAbil(pstmt, 101, "Tidal Slam", "Reliable Water Dmg.", "Water");
             addAbil(pstmt, 102, "Hydro Pump", "High Dmg, Low Accuracy.", "Water");
-            addAbil(pstmt, 103, "Aqua Ring", "Restores HP over time (Instant Heal for now).", "Healing");
+            addAbil(pstmt, 103, "Aqua Ring", "Restores HP.", "Healing");
             addAbil(pstmt, 104, "Bubble Shield", "Increases Defense.", "Buff");
             
             // --- FIRE ---
@@ -63,8 +62,8 @@ public class DatabaseManager {
             // --- GRASS ---
             addAbil(pstmt, 109, "Razor Leaf", "Reliable Grass Dmg. High Crit.", "Grass");
             addAbil(pstmt, 110, "Solar Beam", "Massive Dmg.", "Grass");
-            addAbil(pstmt, 111, "Synthesis", "Restores 50% HP.", "Healing");
-            addAbil(pstmt, 112, "Spore", "Chance to Sleep/Stun enemy.", "Debuff");
+            addAbil(pstmt, 111, "Synthesis", "Restores HP.", "Healing");
+            addAbil(pstmt, 112, "Spore", "Chance to Sleep enemy.", "Debuff");
 
             // --- BUG ---
             addAbil(pstmt, 113, "X-Scissor", "Reliable Bug Dmg.", "Bug");
@@ -75,7 +74,7 @@ public class DatabaseManager {
             // --- LIGHTNING ---
             addAbil(pstmt, 117, "Spark", "Reliable Lightning Dmg.", "Lightning");
             addAbil(pstmt, 118, "Thunder", "Massive Dmg, low accuracy.", "Lightning");
-            addAbil(pstmt, 119, "Charge", "Next attack does 2x damage.", "Buff");
+            addAbil(pstmt, 119, "Charge", "Raises Attack.", "Buff");
             addAbil(pstmt, 120, "Thunder Wave", "Paralyzes enemy.", "Debuff");
 
             // --- FLYING ---
@@ -99,50 +98,53 @@ public class DatabaseManager {
             // --- GROUND ---
             addAbil(pstmt, 133, "Mud Shot", "Ground Dmg. Lowers Speed.", "Ground");
             addAbil(pstmt, 134, "Earthquake", "Massive Ground Dmg.", "Ground");
-            addAbil(pstmt, 135, "Sandstorm", "Buffs Sp.Def (Simulated as Def).", "Buff");
+            addAbil(pstmt, 135, "Sandstorm", "Buffs Def.", "Buff");
             addAbil(pstmt, 136, "Fissure", "Risk move. Huge dmg or miss.", "Ground");
 
             pstmt.executeBatch();
         }
 
-        // --- MONSTER STATS (Strategic Stats: HP 400-600, Atk 90-130) ---
+        // --- MONSTER STATS (Rebalanced for RPG Progression) ---
+        // Base Stats are now "Level 0" stats. They grow as level increases.
+        // HP: 50-90 range | Atk/Def: 10-25 range
+        
         String insertMonster = "INSERT INTO Monster (id, name, type, base_hp, base_atk, base_def, base_spd, a1, a2, a3, a4) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(insertMonster)) {
             // Water
-            addMon(pstmt, 1, "Wilkeens", "Water", 550, 90, 120, 60, 101, 102, 103, 104); // Paladin
-            addMon(pstmt, 2, "Hose", "Water", 450, 130, 80, 85, 101, 102, 104, 119); // Bruiser
+            addMon(pstmt, 1, "Wilkeens", "Water", 75, 14, 18, 12, 101, 102, 103, 104); 
+            addMon(pstmt, 2, "Hose", "Water", 65, 18, 12, 16, 101, 102, 104, 119); 
 
             // Fire
-            addMon(pstmt, 3, "Boombero", "Fire", 420, 140, 60, 95, 105, 106, 107, 108); // Glass Cannon
-            addMon(pstmt, 4, "Apoyet", "Fire", 400, 110, 80, 120, 105, 106, 124, 108); // Speedster
+            addMon(pstmt, 3, "Boombero", "Fire", 60, 20, 8, 18, 105, 106, 107, 108); 
+            addMon(pstmt, 4, "Apoyet", "Fire", 55, 16, 12, 22, 105, 106, 124, 108); 
 
             // Grass
-            addMon(pstmt, 5, "Dahmoe", "Grass", 500, 95, 110, 55, 109, 110, 111, 112); // Tank
-            addMon(pstmt, 6, "Santan", "Grass", 440, 125, 70, 90, 109, 110, 112, 120); // Controller
+            addMon(pstmt, 5, "Dahmoe", "Grass", 80, 14, 16, 10, 109, 110, 111, 112); 
+            addMon(pstmt, 6, "Santan", "Grass", 70, 17, 12, 14, 109, 110, 112, 120); 
 
             // Bug
-            addMon(pstmt, 7, "Guyum", "Bug", 380, 100, 160, 40, 113, 114, 115, 116); // Physical Wall
-            addMon(pstmt, 8, "Salagoo", "Bug", 460, 115, 90, 75, 113, 114, 116, 103); // Balanced
+            addMon(pstmt, 7, "Guyum", "Bug", 60, 14, 24, 8, 113, 114, 115, 116); 
+            addMon(pstmt, 8, "Salagoo", "Bug", 70, 16, 14, 12, 113, 114, 116, 103); 
 
             // Lightning
-            addMon(pstmt, 9, "Lectric", "Lightning", 390, 120, 55, 150, 117, 118, 119, 120); // Assassin
-            addMon(pstmt, 10, "Sparky", "Lightning", 410, 145, 65, 100, 117, 118, 119, 121); // Nuker
+            addMon(pstmt, 9, "Lectric", "Lightning", 55, 18, 8, 25, 117, 118, 119, 120); 
+            addMon(pstmt, 10, "Sparky", "Lightning", 60, 22, 10, 18, 117, 118, 119, 121); 
 
             // Ground
-            addMon(pstmt, 11, "Sawalee", "Ground", 600, 105, 130, 30, 133, 134, 135, 115); // Super Tank
-            addMon(pstmt, 12, "Elypante", "Ground", 550, 135, 110, 45, 133, 134, 136, 104); // Juggernaut
+            addMon(pstmt, 11, "Sawalee", "Ground", 90, 15, 20, 6, 133, 134, 135, 115); 
+            addMon(pstmt, 12, "Elypante", "Ground", 85, 19, 16, 8, 133, 134, 136, 104); 
 
             // Flying
-            addMon(pstmt, 13, "Pannykee", "Flying", 400, 110, 75, 130, 121, 122, 123, 124); // Scout
-            addMon(pstmt, 14, "Agilean", "Flying", 430, 130, 70, 125, 121, 122, 107, 124); // Striker
+            addMon(pstmt, 13, "Pannykee", "Flying", 60, 16, 12, 24, 121, 122, 123, 124); 
+            addMon(pstmt, 14, "Agilean", "Flying", 65, 19, 10, 22, 121, 122, 107, 124); 
 
             // Ice
-            addMon(pstmt, 15, "Sorbeetez", "Ice", 450, 125, 85, 80, 125, 126, 127, 128); // Mage
-            addMon(pstmt, 16, "Gimalam", "Ice", 480, 110, 100, 60, 125, 126, 128, 103); // Utility
+            addMon(pstmt, 15, "Sorbeetez", "Ice", 70, 18, 12, 14, 125, 126, 127, 128); 
+            addMon(pstmt, 16, "Gimalam", "Ice", 75, 16, 14, 10, 125, 126, 128, 103); 
 
             // Dark
-            addMon(pstmt, 17, "Alailaw", "Dark", 380, 155, 45, 115, 129, 130, 131, 132); // High Risk/Reward
-            addMon(pstmt, 18, "Milidam", "Dark", 500, 110, 90, 70, 129, 130, 132, 112); // Drain Tank
+            addMon(pstmt, 17, "Alailaw", "Dark", 55, 23, 6, 20, 129, 130, 131, 132); 
+            addMon(pstmt, 18, "Milidam", "Dark", 80, 16, 14, 12, 129, 130, 132, 112); 
 
             pstmt.executeBatch();
         }

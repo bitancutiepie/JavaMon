@@ -61,14 +61,31 @@ public class BattleMechanics {
         double typeMult = getTypeMultiplier(ability.getType(), defender.getType(), trainerClass);
         double classMult = ("AGGRESSOR".equalsIgnoreCase(trainerClass) && !isSupportMove(ability)) ? 1.25 : 1.0;
         
-        if ("BEASTMASTER".equalsIgnoreCase(trainerClass) && attacker.getCurrentHP() < (attacker.getBaseHP() / 2)) {
+        // Beastmaster Perk: Low HP Boost
+        if ("BEASTMASTER".equalsIgnoreCase(trainerClass) && attacker.getCurrentHP() < (attacker.getMaxHP() / 2)) {
             classMult += 0.3;
         }
+        
+        // --- RPG SCALING UPDATE ---
+        // Use getAttack() and getDefense() (which include level scaling) 
+        // instead of getBaseAttack()
+        double atkStat = attacker.getAttack();
+        double defStat = defender.getDefense();
+        
+        // Status Effect Modifiers
+        for (StatusEffect s : attacker.getActiveStatuses()) {
+            if (s.name.contains("Atk Up")) atkStat *= 1.5;
+        }
+        for (StatusEffect s : defender.getActiveStatuses()) {
+            if (s.name.contains("Def Up")) defStat *= 1.5;
+            if (s.name.contains("Def Down")) defStat *= 0.7;
+        }
 
-        double damage = ((double)attacker.getBaseAttack() / Math.max(1, defender.getBaseDefense())) * power * 1.5 * typeMult * classMult;
-        damage *= (0.9 + (Math.random() * 0.2)); 
+        // Damage Formula
+        double damage = (atkStat / Math.max(1, defStat)) * power * 0.8 * typeMult * classMult;
+        damage *= (0.85 + (Math.random() * 0.15)); 
 
-        return (int) Math.max(10, damage); 
+        return (int) Math.max(5, damage); 
     }
     
     public static boolean isSupportMove(Ability a) {

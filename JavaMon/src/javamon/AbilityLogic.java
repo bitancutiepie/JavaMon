@@ -8,73 +8,105 @@ public class AbilityLogic {
     private static final Random random = new Random();
 
     public static String execute(Ability ability, Monster user, Monster target, List<Monster> team, String trainerClass) {
-        String name = ability.getName().toLowerCase();
-        int id = ability.getId();
+        String type = ability.getType(); 
         StringBuilder log = new StringBuilder();
+
+        // --- 1. SUPPORT MOVES (Target SELF) ---
+        if (type.equalsIgnoreCase("Healing") || type.equalsIgnoreCase("Buff")) {
+            return executeSupportMove(ability, user, trainerClass);
+        }
+
+        // --- 2. OFFENSIVE MOVES (Target ENEMY) ---
         
+        // Check Critical Hit
         boolean isCrit = random.nextDouble() < 0.0625;
         double critMult = isCrit ? 1.5 : 1.0;
         if (isCrit) log.append("[CRIT] "); 
 
-        double healMod = ("STRATEGIST".equalsIgnoreCase(trainerClass)) ? 1.4 : 1.0;
-        double statusRate = ("MYSTIC".equalsIgnoreCase(trainerClass)) ? 0.30 : 0.0;
-
-        // SECRET SKILLS
-        if (id == 999) {
-            if ("ELEMENTALIST".equalsIgnoreCase(trainerClass)) {
-                if (BattleMechanics.getTypeMultiplier(ability.getType(), target.getType(), trainerClass) > 1.0) {
-                    log.append(" Mastery Bonus!");
-                }
-            }
-            else if ("STRATEGIST".equalsIgnoreCase(trainerClass)) {
-                user.addStatus("Attack Up", 3, "BUFF");
-                user.addStatus("Defense Up", 3, "BUFF");
-                log.append(" Analyzed Weakness! Stats Up.");
-            }
-            else if ("AGGRESSOR".equalsIgnoreCase(trainerClass)) {
-                user.addStatus("Defense Down", 2, "DEBUFF");
-                log.append(" Reckless attack!");
-            }
-            else if ("BEASTMASTER".equalsIgnoreCase(trainerClass)) {
-                heal(user, 0.40);
-                user.addStatus("Attack Up", 3, "BUFF");
-                return "Restored Health & Rose Attack!";
-            }
-            else if ("MYSTIC".equalsIgnoreCase(trainerClass)) {
-                double roll = random.nextDouble();
-                if (roll < 0.33) { target.addStatus("Burn", 3, "DMG"); log.append(" Burned!"); }
-                else if (roll < 0.66) { target.addStatus("Paralysis", 3, "STOP"); log.append(" Paralyzed!"); }
-                else { target.addStatus("Freeze", 2, "STOP"); log.append(" Frozen!"); }
-            }
-            
-            int baseDmg = BattleMechanics.calculateDamage(user, target, ability, trainerClass);
-            int finalDmg = (int)(baseDmg * critMult);
-            target.setCurrentHP(target.getCurrentHP() - finalDmg);
-            
-            return log.toString() + " Hit for " + finalDmg + " dmg.";
+        // Class Perk: Mystic (Random Status)
+        if ("MYSTIC".equalsIgnoreCase(trainerClass) && random.nextDouble() < 0.30) {
+            applyRandomStatus(target, log);
+        }
+        
+        // Specific Debuff Logic based on Move Name
+        if (ability.getName().contains("Spore") || ability.getName().contains("Void")) {
+             target.addStatus("Sleep", 2, "STOP");
+             log.append(" Enemy fell asleep! ");
+        }
+        else if (ability.getName().contains("Thunder Wave")) {
+             target.addStatus("Paralysis", 3, "STOP");
+             log.append(" Enemy Paralyzed! ");
+        }
+        else if (ability.getName().contains("String Shot")) {
+             target.addStatus("Slow", 3, "DEBUFF"); // Just a visual tag for now
+             log.append(" Speed fell! ");
         }
 
-        // STANDARD MOVES (Same as before)
-        // ... [Rest of logic remains consistent with previous versions] ...
-        // For brevity, using the standard damage logic fallback:
-        
+        // Secret Skill Effects (Attack Variations)
+        if (ability.getId() == 999) {
+             if ("AGGRESSOR".equalsIgnoreCase(trainerClass)) {
+                 user.addStatus("Def Down", 2, "DEBUFF");
+                 log.append(" (Reckless!)");
+             }
+        }
+
+        // Calculate Damage using SCALED stats
         int baseDmg = BattleMechanics.calculateDamage(user, target, ability, trainerClass);
         int finalDmg = (int)(baseDmg * critMult);
+        
         target.setCurrentHP(target.getCurrentHP() - finalDmg);
         
-        if (BattleMechanics.getTypeMultiplier(ability.getType(), target.getType(), trainerClass) > 1.0) {
-            return log.toString() + "Super Effective! " + finalDmg + " dmg.";
-        } else if (BattleMechanics.getTypeMultiplier(ability.getType(), target.getType(), trainerClass) < 1.0) {
-            return log.toString() + "Not Effective... " + finalDmg + " dmg.";
+        // Type Effectiveness Log
+        double mult = BattleMechanics.getTypeMultiplier(type, target.getType(), trainerClass);
+        if (mult > 1.0) log.append("Super Effective! ");
+        else if (mult < 1.0) log.append("Not Effective... ");
+        
+        log.append("Hit for ").append(finalDmg).append(" damage.");
+        
+        // Recoil Check
+        if (ability.getName().contains("Brave Bird")) {
+            int recoil = finalDmg / 4;
+            user.setCurrentHP(user.getCurrentHP() - recoil);
+            log.append(" Took recoil!");
         }
-        return log.toString() + "Hit for " + finalDmg + " dmg.";
+
+        return log.toString();
     }
 
-    private static void heal(Monster m, double pct) {
-        if (m.isFainted()) return;
-        int amt = (int)(m.getBaseHP() * pct);
-        m.setCurrentHP(m.getCurrentHP() + amt);
+    private static String executeSupportMove(Ability a, Monster user, String trainerClass) {
+        double boostMult = "STRATEGIST".equalsIgnoreCase(trainerClass) ? 1.25 : 1.0;
+        
+        if (a.getType().equalsIgnoreCase("Healing")) {
+            int healAmt = (int)(user.getMaxHP() * 0.40 * boostMult);
+            user.setCurrentHP(user.getCurrentHP() + healAmt);
+            return "Restored " + healAmt + " HP!";
+        } 
+        else if (a.getType().equalsIgnoreCase("Buff")) {
+            // Apply generic buffs
+            if (a.getName().contains("Defense") || a.getName().contains("Shield") || a.getName().contains("Harden") || a.getName().contains("Hail")) {
+                user.addStatus("Def Up", 3, "BUFF");
+                return "Defense Rose!";
+            }
+            if (a.getName().contains("Kindle") || a.getName().contains("Plot") || a.getName().contains("Charge")) {
+                user.addStatus("Atk Up", 3, "BUFF");
+                return "Attack Rose!";
+            }
+            if (a.getName().contains("Tailwind")) {
+                user.addStatus("Spd Up", 3, "BUFF");
+                return "Speed Rose!";
+            }
+            
+            // Default Buff Fallback
+            user.addStatus("Powered Up", 3, "BUFF");
+            return "Stats increased!";
+        }
+        return "Used " + a.getName();
     }
-
-    private static boolean chance(double pct) { return random.nextDouble() < pct; }
+    
+    private static void applyRandomStatus(Monster target, StringBuilder log) {
+        double r = random.nextDouble();
+        if (r < 0.33) { target.addStatus("Burn", 3, "DMG"); log.append(" Burned!"); }
+        else if (r < 0.66) { target.addStatus("Paralysis", 3, "STOP"); log.append(" Paralyzed!"); }
+        else { target.addStatus("Freeze", 1, "STOP"); log.append(" Frozen!"); }
+    }
 }
