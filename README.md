@@ -1,5 +1,5 @@
 # JavaMon
-![JavaMon Logo](screenshots/javamon.png)
+![JavaMon Logo](screenshots/Javamon.png)
 
 ## Project Overview
 
