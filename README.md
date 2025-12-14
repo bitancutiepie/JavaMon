@@ -64,26 +64,26 @@ Polymorphism is applied through abilities and effects where different abilities 
 ## Sample Output / Gameplay Flow
 
 - The game starts on the **Main Menu**, where the user can adjust the volume settings and click **Start**.
-![Main Menu](screenshots/MainMenu.png)    
+![Main Menu](screenshots/MainMenu.PNG)    
 - The **Trainer Selection** screen allows the user to choose from five unique trainers, each with distinct abilities and perks.
-  ![Trainer Selection](screenshots/TrainerSelection.png)  
+  ![Trainer Selection](screenshots/TrainerSelection.PNG)  
 - The user proceeds to the **Draft Selection**, where JavaMons with unique abilities, classes, and special skills are presented.
-  ![Draft Selection](screenshots/DraftSelection.png)  
+  ![Draft Selection](screenshots/DraftSelection.PNG)  
 - The user selects **three JavaMons**, with confirmation prompts displaying each JavaMon’s vital statistics.
-  ![Selection Mon](screenshots/DraftSelectionConfirm.png)  
+  ![Selection Mon](screenshots/DraftSelectionConfirm.PNG)  
 - The game then proceeds to the **Game Window**, where each JavaMon has four abilities and one Ultimate Ability depending on its class.
-  ![Game Window](screenshots/GameWindow.png)  
+  ![Game Window](screenshots/GameWindow.PNG)  
 - The user can hover over Ally and Enemy JavaMons to view their stats.
-  ![Hover](screenshots/GameWindowAbilityy.png)  
+  ![Hover](screenshots/GameWindowAbilityy.PNG)  
 - JavaMons can be swapped using the **JAVAMON** button.
-  ![JavaMon Switching](screenshots/GameWindowJavamon.png)  
+  ![JavaMon Switching](screenshots/GameWindowJavamon.PNG)  
 - The **HELP** button displays the Type Chart, Game Mechanics, and Classes & Tips.
-  ![Help](screenshots/Help1.png) ![Help](screenshots/Help2.png) ![Help](screenshots/Help3.png)
-- Each defeated enemy grants **30 XP** to the JavaMon that delivers the finishing blow.  
+  ![Help](screenshots/Help1.PNG) ![Help](screenshots/Help2.PNG) ![Help](screenshots/Help3.PNG)
+- Each defeated enemy grants **XP** to the JavaMon that delivers the finishing blow.  
 - JavaMons level up and become stronger for later rounds.
-  ![Flooring](screenshots/RoundClear.png)  
+  ![Flooring](screenshots/RoundClear.PNG)  
 - If the player fails to defeat the opposing team, a **Game Over** screen appears with options to return to the Main Menu or exit.
-  ![Help](screenshots/GameOver.png)
+  ![Help](screenshots/GameOver.PNG)
 
 ---
 
