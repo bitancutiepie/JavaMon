@@ -2,18 +2,17 @@ package javamon;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*; // <-- NEW IMPORT
+import java.awt.event.*; 
 import javax.sound.sampled.*;
 import java.net.URL;
 import java.util.prefs.Preferences;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.swing.plaf.basic.BasicSliderUI;
 import java.awt.geom.RoundRectangle2D; // Needed for ModernSliderUI
+import java.io.IOException;
 
 public class MainMenu extends JFrame {
 
-    private static final ConcurrentHashMap<Clip, Timer> activeFadeTimers = new ConcurrentHashMap<>();
-    private Clip bgClip; // Store clip reference
+    private final SoundManager soundManager = SoundManager.getInstance();
 
     public MainMenu() {
         setTitle("JavaMon");
@@ -26,8 +25,8 @@ public class MainMenu extends JFrame {
         Image icon = AssetLoader.loadImage("/javamon/assets/icon.png", "icon.png");
         if (icon != null) setIconImage(icon);
 
-        // Music
-        bgClip = playBackgroundMusic("/javamon/assets/bgsound.wav"); // Clip starts here and volume is set
+        // Music: Play the persistent BGM clip
+        soundManager.playMenuMusic(); 
 
         JPanel bgPanel = new JPanel() {
             private Image bg = AssetLoader.loadImage("/javamon/assets/loading.png", "loading.png");
@@ -50,9 +49,14 @@ public class MainMenu extends JFrame {
         
         JButton startButton = createButton(startIcon, 102, 459, 155, 53);
         startButton.addActionListener(e -> {
-            if (bgClip != null) bgClip.stop(); // Stop music on exit
-            new TrainerSelection();
-            this.dispose();
+            playSoundEffect("/javamon/assets/ButtonsFx.wav"); 
+            // Use a short timer to allow the sound to play before disposing
+            Timer t = new Timer(300, ev -> {
+                new TrainerSelection();
+                this.dispose();
+            });
+            t.setRepeats(false);
+            t.start();
         });
         bgPanel.add(startButton);
 
@@ -64,13 +68,22 @@ public class MainMenu extends JFrame {
         }
 
         JButton exitButton = createButton(exitIcon, 568, 459, 155, 53);
-        exitButton.addActionListener(e -> System.exit(0));
+        exitButton.addActionListener(e -> {
+            playSoundEffect("/javamon/assets/ButtonsFx.wav"); 
+            // Use a short timer to allow the sound to play before exiting
+            Timer t = new Timer(300, ev -> {
+                soundManager.stopAllMusic(); // Stop music when exiting application
+                System.exit(0);
+            });
+            t.setRepeats(false);
+            t.start();
+        });
         bgPanel.add(exitButton);
 
         // Volume
-        // NEW: Enhanced Volume Panel (Wider to accommodate features)
-        JPanel volumePanel = createEnhancedVolumeControl(bgClip);
-        volumePanel.setBounds(270, 490, 260, 70); // Repositioned and larger
+        // NOTE: We no longer need to pass the Clip object since setVolume is static on SoundManager
+        JPanel volumePanel = createEnhancedVolumeControl(); 
+        volumePanel.setBounds(270, 490, 260, 70); 
         bgPanel.add(volumePanel);
         
         setVisible(true);
@@ -78,10 +91,6 @@ public class MainMenu extends JFrame {
     
     @Override
     public void dispose() {
-        if (bgClip != null) {
-            bgClip.stop();
-            bgClip.close();
-        }
         super.dispose();
     }
     
@@ -100,7 +109,7 @@ public class MainMenu extends JFrame {
     // ENHANCED VOLUME CONTROL SYSTEM
     // ========================================
     
-    private JPanel createEnhancedVolumeControl(Clip bgClip) {
+    private JPanel createEnhancedVolumeControl() {
         JPanel panel = new JPanel(null);
         panel.setOpaque(false);
 
@@ -182,7 +191,8 @@ public class MainMenu extends JFrame {
             isMuted[0] = (val == 0);
             if (val > 0) lastVolume[0] = val;
             
-            setVolumeSmooth(bgClip, val);
+            // Call setVolume from SoundManager instance (affects both clips)
+            soundManager.setVolume(val);
             
             if (volumeSlider.getValueIsAdjusting()) {
                 showVolumePopup(popupIndicator, val);
@@ -246,76 +256,54 @@ public class MainMenu extends JFrame {
     }
     
     // ===== DYNAMIC VOLUME ICON (Uses standard Unicode Emojis) =====
+ // ===== DYNAMIC VOLUME ICON =====
     private String getVolumeIcon(int volume) {
-        if (volume == 0) return "🔇";
-        if (volume < 33) return "🔈";
-        if (volume < 66) return "🔉";
-        return "🔊";
+        if (volume == 0) return "🔇";  // Muted
+        if (volume < 33) return "🔈";  // Low volume
+        if (volume < 66) return "🔉";  // Medium volume
+        return "🔊";                    // High volume
     }
     
-    // ===== SMOOTH VOLUME FADE =====
-    private void setVolumeSmooth(Clip clip, int targetVolume) {
-        if (clip == null || !clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) return;
-        
-        FloatControl gain = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-        float range = gain.getMaximum() - gain.getMinimum();
-        float targetGain = (range * (targetVolume / 100f)) + gain.getMinimum();
-        
-        Timer existingTimer = activeFadeTimers.get(clip);
-        if (existingTimer != null && existingTimer.isRunning()) {
-            existingTimer.stop();
-        }
-
-        float currentGain = gain.getValue();
-        if (Math.abs(currentGain - targetGain) < 0.01f) return;
-        
-        Timer fadeTimer = new Timer(10, null);
-        fadeTimer.addActionListener(e -> {
-            float current = gain.getValue();
-            float diff = targetGain - current;
-            
-            if (Math.abs(diff) < 0.05f) {
-                gain.setValue(targetGain);
-                fadeTimer.stop();
-                activeFadeTimers.remove(clip);
-            } else {
-                // Increased step to 15% for faster response as requested
-                gain.setValue(current + (diff * 0.15f));
-            }
-        });
-        
-        activeFadeTimers.put(clip, fadeTimer);
-        fadeTimer.start();
-    }
-    
-    // ===== BACKGROUND MUSIC PLAYBACK =====
-    private Clip playBackgroundMusic(String path) {
+    // ========================================
+    // SOUND EFFECT PLAYBACK METHOD 
+    // ========================================
+    private void playSoundEffect(String path) {
         try {
             URL url = getClass().getResource(path);
-            if(url == null) return null;
+            if(url == null) {
+                System.err.println("Sound file not found: " + path);
+                return;
+            }
             
-            AudioInputStream audio = AudioSystem.getAudioInputStream(url);
+            AudioInputStream audioIn = AudioSystem.getAudioInputStream(url);
             Clip clip = AudioSystem.getClip();
-            clip.open(audio);
+            clip.open(audioIn);
             
+            // Get volume preference from the user settings
             Preferences prefs = Preferences.userNodeForPackage(MainMenu.class);
             int savedVolume = prefs.getInt("volume", 50);
             
             if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
                 FloatControl gain = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
                 float range = gain.getMaximum() - gain.getMinimum();
+                // Set the volume based on the saved preference
                 float gainVal = (range * (savedVolume / 100f)) + gain.getMinimum();
                 gain.setValue(gainVal);
             }
             
-            clip.loop(Clip.LOOP_CONTINUOUSLY);
             clip.start();
-            return clip;
-        } catch (Exception e) { 
-            System.err.println("Failed to load audio: " + e.getMessage());
-            return null; 
+            
+            clip.addLineListener(event -> {
+                if (event.getType() == LineEvent.Type.STOP) {
+                    clip.close();
+                }
+            });
+            
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
+            System.err.println("Error playing sound effect: " + e.getMessage());
         }
     }
+
 
     // ========================================
     // CUSTOM COMPONENTS
@@ -329,7 +317,29 @@ public class MainMenu extends JFrame {
         public VolumeIconButton(int initialVolume) {
             this.volume = initialVolume;
             setText(getVolumeIcon(volume));
-            setFont(new Font("Segoe UI Emoji", Font.PLAIN, 30));
+         // Try multiple emoji fonts for cross-platform support
+            String[] emojiSupportingFonts = {
+                "Segoe UI Emoji",      // Windows
+                "Apple Color Emoji",   // macOS
+                "Noto Color Emoji",    // Linux
+                "Segoe UI Symbol",     // Windows fallback
+                "Arial Unicode MS"     // Cross-platform
+            };
+
+            Font emojiFont = null;
+            for (String fontName : emojiSupportingFonts) {
+                Font testFont = new Font(fontName, Font.PLAIN, 30);
+                if (!testFont.getFamily().equals("Dialog")) {
+                    emojiFont = testFont;
+                    break;
+                }
+            }
+
+            if (emojiFont != null) {
+                setFont(emojiFont);
+            } else {
+                setFont(new Font("SansSerif", Font.PLAIN, 30));
+            }
             setCursor(new Cursor(Cursor.HAND_CURSOR));
             setHorizontalAlignment(SwingConstants.CENTER);
         }
@@ -379,15 +389,10 @@ public class MainMenu extends JFrame {
             super(slider);
         }
         
-        // Override calculateThumbSize and calculateTrackRect to ensure the thumb is drawn completely
         @Override
         protected Dimension getThumbSize() {
             return new Dimension(THUMB_SIZE, THUMB_SIZE);
         }
-
-        // Adjust the track rectangle to account for the larger thumb size if needed, 
-        // but often the BasicSliderUI handles this if the preferred size is set correctly.
-        // We'll rely on BasicSliderUI's default calculations being sufficient for the 140px width.
 
         @Override
         public void paintTrack(Graphics g) {
@@ -455,14 +460,12 @@ public class MainMenu extends JFrame {
             g2d.fillOval(cx - 3, cy - 3, 6, 6);
         }
         
-        // This method ensures the thumb doesn't jump when track position is recalculated
         @Override
         public void calculateThumbSize() {
             super.calculateThumbSize();
             thumbRect.setSize(THUMB_SIZE, THUMB_SIZE);
         }
 
-        // We must override this to ensure the thumb stays centered vertically regardless of default UI calculations.
         @Override
         protected void calculateThumbLocation() {
             super.calculateThumbLocation();
@@ -471,6 +474,8 @@ public class MainMenu extends JFrame {
     }
 
     public static void main(String[] args) {
+        // Ensure SoundManager is initialized and music starts when the application runs
+        SoundManager.getInstance().playMenuMusic();
         SwingUtilities.invokeLater(() -> new MainMenu());
     }
 }

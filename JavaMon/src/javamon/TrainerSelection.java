@@ -6,12 +6,18 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import java.awt.*;
+import java.awt.event.ActionListener;
+import java.net.URL;
+import java.util.prefs.Preferences;
+import javax.sound.sampled.*;
+import java.io.IOException;
 
 public class TrainerSelection extends JFrame {
 
     private String selectedTrainerClass = "ELEMENTALIST"; 
     private JLabel floatingPreview; 
     private JDialog confirmationDialog;
+    private final SoundManager soundManager = SoundManager.getInstance();
 
     private static final Color DARK_BG = new Color(20, 20, 20);
     private static final Color NEON_GOLD = new Color(255, 215, 0);
@@ -26,6 +32,12 @@ public class TrainerSelection extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
+     // Set window icon
+        Image iconlogo = AssetLoader.loadImage("/javamon/assets/icon.png", "icon.png");
+        if (iconlogo != null) setIconImage(iconlogo);
+        
+        // Music: Ensure menu music is playing
+        soundManager.playMenuMusic();
 
         confirmationDialog = new JDialog(this, "Confirm Class", Dialog.ModalityType.APPLICATION_MODAL);
         confirmationDialog.setSize(500, 480);
@@ -74,7 +86,11 @@ public class TrainerSelection extends JFrame {
         JButton backButton = new JButton(backIcon);
         backButton.setBounds(20, 630, 204, 84);
         styleButton(backButton);
-        backButton.addActionListener(e -> { new MainMenu(); dispose(); });
+        backButton.addActionListener(e -> { 
+            playSoundEffect("/javamon/assets/ButtonsFx.wav"); 
+            Timer t = new Timer(300, ev -> { new MainMenu(); dispose(); });
+            t.setRepeats(false); t.start();
+        });
         bgPanel.add(backButton);
 
         ImageIcon proceedIcon = AssetLoader.loadIcon("/javamon/assets/PROCEED BUTTON.png", "PROCEED BUTTON.png");
@@ -82,8 +98,9 @@ public class TrainerSelection extends JFrame {
         proceedButton.setBounds(1016, 630, proceedIcon != null ? proceedIcon.getIconWidth() : 200, proceedIcon != null ? proceedIcon.getIconHeight() : 80);
         styleButton(proceedButton);
         proceedButton.addActionListener(e -> {
-            new DraftSelection(selectedTrainerClass);
-            dispose();
+            playSoundEffect("/javamon/assets/ButtonsFx.wav"); 
+            Timer t = new Timer(300, ev -> { new DraftSelection(selectedTrainerClass); dispose(); });
+            t.setRepeats(false); t.start();
         });
         bgPanel.add(proceedButton);
 
@@ -104,7 +121,10 @@ public class TrainerSelection extends JFrame {
             btn.setBounds(pos[0], pos[1], pos[2], pos[3]);
             styleButton(btn);
             
-            btn.addActionListener(e -> showConfirmationDialog(tName, icon, pos[2], pos[3], rectangle));
+            btn.addActionListener(e -> {
+                playSoundEffect("/javamon/assets/ButtonsFx.wav"); 
+                showConfirmationDialog(tName, icon, pos[2], pos[3], rectangle);
+            });
             bgPanel.add(btn);
             bgPanel.setComponentZOrder(btn, 1);
         }
@@ -114,6 +134,48 @@ public class TrainerSelection extends JFrame {
     
     private void styleButton(JButton b) {
         b.setBorderPainted(false); b.setContentAreaFilled(false); b.setFocusPainted(false); b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    }
+    
+    // ========================================
+    // SOUND EFFECT PLAYBACK METHOD
+    // ========================================
+    private void playSoundEffect(String path) {
+        try {
+            URL url = getClass().getResource(path);
+            if(url == null) {
+                System.err.println("Sound file not found: " + path);
+                return;
+            }
+            
+            AudioInputStream audioIn = AudioSystem.getAudioInputStream(url);
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioIn);
+            
+            // Get volume preference from the user settings saved in MainMenu
+            Preferences prefs = Preferences.userNodeForPackage(TrainerSelection.class);
+            int savedVolume = prefs.getInt("volume", 50);
+            
+            if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                FloatControl gain = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+                float range = gain.getMaximum() - gain.getMinimum();
+                // Set the volume based on the saved preference
+                float gainVal = (range * (savedVolume / 100f)) + gain.getMinimum();
+                gain.setValue(gainVal);
+            }
+            
+            // Start playing the clip once
+            clip.start();
+            
+            // Add a listener to close the clip resources when it finishes playing
+            clip.addLineListener(event -> {
+                if (event.getType() == LineEvent.Type.STOP) {
+                    clip.close();
+                }
+            });
+            
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
+            System.err.println("Error playing sound effect: " + e.getMessage());
+        }
     }
     
     // --- CONFIRMATION POPUP ---
@@ -151,8 +213,16 @@ public class TrainerSelection extends JFrame {
         JButton confirm = new JButton(" SELECT "); confirm.setBackground(new Color(50, 200, 50)); confirm.setForeground(Color.WHITE); confirm.setFocusPainted(false);
         JButton cancel = new JButton(" CANCEL "); cancel.setBackground(new Color(200, 50, 50)); cancel.setForeground(Color.WHITE); cancel.setFocusPainted(false);
         
-        confirm.addActionListener(e -> { selectedTrainerClass = trainerName; updatePreview(icon, w, h, rectangle); confirmationDialog.dispose(); });
-        cancel.addActionListener(e -> confirmationDialog.dispose());
+        confirm.addActionListener(e -> { 
+            playSoundEffect("/javamon/assets/ButtonsFx.wav"); 
+            selectedTrainerClass = trainerName; 
+            updatePreview(icon, w, h, rectangle); 
+            confirmationDialog.dispose(); 
+        });
+        cancel.addActionListener(e -> {
+            playSoundEffect("/javamon/assets/ButtonsFx.wav"); 
+            confirmationDialog.dispose();
+        });
         
         btnPanel.add(confirm); btnPanel.add(cancel); panel.add(btnPanel, BorderLayout.SOUTH);
         confirmationDialog.setContentPane(panel); confirmationDialog.revalidate(); confirmationDialog.repaint(); confirmationDialog.setVisible(true);

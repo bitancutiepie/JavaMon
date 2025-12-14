@@ -12,6 +12,12 @@ import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
+import java.net.URL; // Needed for playSoundEffect
+import java.util.prefs.Preferences; // Needed for playSoundEffect
+import javax.sound.sampled.*; // Needed for playSoundEffect
+import java.io.IOException; // Needed for playSoundEffect
+
+
 
 public class GameWindow extends JFrame {
     
@@ -21,6 +27,20 @@ public class GameWindow extends JFrame {
     private List<Monster> masterMonsterPool; 
     private String trainerClass; 
     
+ // Add these after your existing field declarations (around line 50)
+
+ // NEW: Damage preview system
+	 private JPanel damagePreviewPanel;
+	 private JLabel[] damagePreviewLabels = new JLabel[4];
+	 private boolean showDamagePreviews = true; // Toggle in settings
+	
+	 // NEW: Turn order indicator
+	 private JLabel turnOrderLabel;
+	 private JPanel turnOrderPanel;
+	
+	 // NEW: Speed comparison indicator
+	 private JLabel speedIndicator;
+ 
     private Monster activePlayerMon;
     private Monster activeEnemyMon;
     private int currentFloor = 1;
@@ -56,6 +76,8 @@ public class GameWindow extends JFrame {
     private TypeBadge typeBadge1, typeBadge2;
     private StatusTray statusTray1, statusTray2;
     
+    private final SoundManager soundManager = SoundManager.getInstance(); // Get SoundManager
+
     // --- Performance & Animation Fields ---
     private Timer idleTimer1;
     private Timer idleTimer2;
@@ -107,11 +129,20 @@ public class GameWindow extends JFrame {
             m.setLevel(1);
         }
 
-        setTitle("JavaMon Battle - Class: " + this.trainerClass);
+        // --- MUSIC CONTROL ---
+        soundManager.stopMenuMusic(); // Stop menu music on battle start
+        soundManager.playGameMusic();  // Start game music
+        // --- END MUSIC CONTROL ---
+
+        setTitle("JavaMon Battle");
         setSize(1280, 760);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
+        
+     // Set window icon
+        Image icon = AssetLoader.loadImage("/javamon/assets/icon.png", "icon.png");
+        if (icon != null) setIconImage(icon);
         
         layeredPane = new JLayeredPane();
         layeredPane.setBounds(0, 0, 1280, 760);
@@ -202,7 +233,7 @@ public class GameWindow extends JFrame {
         hpBar1.setBounds(40, 110, 280, 25);
         bgPanel.add(hpBar1); bgPanel.setComponentZOrder(hpBar1, 0); 
         
-        txtJLives1 = createText(60, 140, 300, 30, Color.GRAY, false); 
+        txtJLives1 = createText(50, 140, 300, 30, Color.GRAY, false); 
         bgPanel.add(txtJLives1); bgPanel.setComponentZOrder(txtJLives1, 0);
         
         statusTray1 = new StatusTray(); 
@@ -253,22 +284,36 @@ public class GameWindow extends JFrame {
         txtWhat.setHighlighter(null);    
         bgPanel.add(txtWhat); bgPanel.setComponentZOrder(txtWhat, 0);
 
+        // --- BATTLE BUTTONS ---
         ImageIcon fightIcon = new ImageIcon(getClass().getResource("/javamon/assets/FIGHTBTN.png"));
         JButton fightButton = createAnimatedButton(fightIcon);
         fightButton.setBounds(650, 600, fightIcon.getIconWidth(), fightIcon.getIconHeight());
-        fightButton.addActionListener(e -> { if (!isTurnInProgress) { updateFightPanel(); showOverlay(fightPanel); } });
+        fightButton.addActionListener(e -> { 
+            if (!isTurnInProgress) { 
+                playSoundEffect("/javamon/assets/ButtonsFx.wav"); // <--- APPLIED SOUND EFFECT
+                updateFightPanel(); showOverlay(fightPanel); 
+            } 
+        });
         bgPanel.add(fightButton); bgPanel.setComponentZOrder(fightButton, 0);
 
         ImageIcon jMonIcon = new ImageIcon(getClass().getResource("/javamon/assets/JAVAMONBTN.png"));
         JButton jMonButton = createAnimatedButton(jMonIcon);
         jMonButton.setBounds(920, 600, jMonIcon.getIconWidth(), jMonIcon.getIconHeight());
-        jMonButton.addActionListener(e -> { if (!isTurnInProgress) { updateSwitchPanel(); showOverlay(switchPanel); } });
+        jMonButton.addActionListener(e -> { 
+            if (!isTurnInProgress) { 
+                playSoundEffect("/javamon/assets/ButtonsFx.wav"); // <--- APPLIED SOUND EFFECT
+                updateSwitchPanel(); showOverlay(switchPanel); 
+            } 
+        });
         bgPanel.add(jMonButton); bgPanel.setComponentZOrder(jMonButton, 0);
 
         ImageIcon helpIcon = new ImageIcon(getClass().getResource("/javamon/assets/HELPBTN.png"));
         JButton helpButton = createAnimatedButton(helpIcon);
         helpButton.setBounds(780, 660, helpIcon.getIconWidth(), helpIcon.getIconHeight());
-        helpButton.addActionListener(e -> showOverlay(helpPanel));
+        helpButton.addActionListener(e -> {
+            playSoundEffect("/javamon/assets/ButtonsFx.wav"); // <--- APPLIED SOUND EFFECT
+            showOverlay(helpPanel);
+        });
         bgPanel.add(helpButton); bgPanel.setComponentZOrder(helpButton, 0);
     }
 
@@ -286,14 +331,82 @@ public class GameWindow extends JFrame {
         switchPanel.setVisible(false);
         lp.add(switchPanel, JLayeredPane.MODAL_LAYER);
 
-        helpPanel = new JPanel(new BorderLayout());
-        helpPanel.setBounds(340, 100, 600, 500);
-        helpPanel.setBackground(new Color(20, 20, 20));
-        helpPanel.setBorder(BorderFactory.createLineBorder(Color.WHITE, 2));
-        JTextArea helpText = new JTextArea("--- TYPE CHART ---\nWATER > Fire, Ground\nFIRE > Grass, Bug, Ice\n..."); helpText.setFont(new Font("Monospaced", Font.PLAIN, 18)); helpText.setForeground(Color.WHITE); helpText.setBackground(new Color(20, 20, 20)); helpText.setEditable(false);
-        helpPanel.add(new JScrollPane(helpText), BorderLayout.CENTER);
-        JButton closeHelp = new JButton("CLOSE"); closeHelp.setBackground(Color.RED); closeHelp.setForeground(Color.WHITE); closeHelp.addActionListener(e -> helpPanel.setVisible(false)); helpPanel.add(closeHelp, BorderLayout.SOUTH);
-        helpPanel.setVisible(false); lp.add(helpPanel, JLayeredPane.POPUP_LAYER);
+     // Replace the helpPanel creation in createOverlays method with this:
+
+        helpPanel = new JPanel(new BorderLayout(0, 0));
+        helpPanel.setBounds(200, 50, 880, 620);
+        helpPanel.setBackground(new Color(20, 20, 30));
+        helpPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(NEON_CYAN, 3),
+            BorderFactory.createEmptyBorder(0, 0, 0, 0)
+        ));
+
+        // Header
+        JPanel helpHeader = new JPanel(new BorderLayout());
+        helpHeader.setBackground(new Color(15, 15, 25));
+        helpHeader.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
+
+        JLabel helpTitle = new JLabel("⚔ JAVAMON BATTLE GUIDE ⚔");
+        helpTitle.setFont(new Font("Impact", Font.BOLD, 32));
+        helpTitle.setForeground(NEON_CYAN);
+        helpTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        helpHeader.add(helpTitle, BorderLayout.CENTER);
+
+        helpPanel.add(helpHeader, BorderLayout.NORTH);
+
+        // Content with tabs
+        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(new Font("Arial", Font.BOLD, 14));
+        tabbedPane.setBackground(new Color(25, 25, 35));
+        tabbedPane.setForeground(Color.WHITE);
+
+        // TAB 1: Type Chart
+        JPanel typeChartPanel = createTypeChartPanel();
+        tabbedPane.addTab("TYPE CHART", typeChartPanel);
+
+        // TAB 2: Game Mechanics
+        JPanel mechanicsPanel = createMechanicsPanel();
+        tabbedPane.addTab("MECHANICS", mechanicsPanel);
+
+        // TAB 3: Classes & Tips
+        JPanel tipsPanel = createTipsPanel();
+        tabbedPane.addTab("CLASSES & TIPS", tipsPanel);
+
+        helpPanel.add(tabbedPane, BorderLayout.CENTER);
+
+        // Footer with close button
+        JPanel helpFooter = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        helpFooter.setBackground(new Color(15, 15, 25));
+        helpFooter.setBorder(BorderFactory.createEmptyBorder(15, 0, 15, 0));
+
+        JButton closeHelp = new JButton("CLOSE");
+        closeHelp.setFont(new Font("Arial", Font.BOLD, 18));
+        closeHelp.setPreferredSize(new Dimension(200, 45));
+        closeHelp.setBackground(new Color(200, 50, 50));
+        closeHelp.setForeground(Color.WHITE);
+        closeHelp.setFocusPainted(false);
+        closeHelp.setBorder(BorderFactory.createEmptyBorder(10, 30, 10, 30));
+        closeHelp.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        closeHelp.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                closeHelp.setBackground(new Color(230, 70, 70));
+            }
+            public void mouseExited(MouseEvent e) {
+                closeHelp.setBackground(new Color(200, 50, 50));
+            }
+        });
+
+        closeHelp.addActionListener(e -> {
+            playSoundEffect("/javamon/assets/ButtonsFx.wav");
+            helpPanel.setVisible(false);
+        });
+
+        helpFooter.add(closeHelp);
+        helpPanel.add(helpFooter, BorderLayout.SOUTH);
+
+        helpPanel.setVisible(false);
+        lp.add(helpPanel, JLayeredPane.POPUP_LAYER);
         
         // POKEMON STYLE OVERLAY: Start off-screen
         infoOverlay = new JPanel(new BorderLayout(10, 5));
@@ -827,6 +940,7 @@ public class GameWindow extends JFrame {
                 cancelCard.setBackground(new Color(50, 50, 50));
             }
             public void mouseClicked(MouseEvent e) {
+                playSoundEffect("/javamon/assets/ButtonsFx.wav"); // <--- APPLIED SOUND EFFECT
                 fightPanel.setVisible(false);
             }
         });
@@ -838,6 +952,173 @@ public class GameWindow extends JFrame {
     }
 
     // Helper method for type colors
+    
+    private JPanel createTypeChartPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(new Color(20, 20, 30));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JTextPane textPane = new JTextPane();
+        textPane.setContentType("text/html");
+        textPane.setEditable(false);
+        textPane.setBackground(new Color(20, 20, 30));
+        
+        String html = "<html><body style='font-family:Arial; color:white; font-size:14px; line-height:1.8;'>"
+            + "<h2 style='color:#00FFFF; text-align:center;'>TYPE EFFECTIVENESS CHART</h2>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #ff6666;'>"
+            + "<b style='color:#ff6666; font-size:16px;'>🔥 FIRE</b><br/>"
+            + "<span style='color:#00ff00;'>Strong vs:</span> Grass, Bug, Ice<br/>"
+            + "<span style='color:#ff5555;'>Weak vs:</span> Water, Ground, Fire"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #6699ff;'>"
+            + "<b style='color:#6699ff; font-size:16px;'>💧 WATER</b><br/>"
+            + "<span style='color:#00ff00;'>Strong vs:</span> Fire, Ground<br/>"
+            + "<span style='color:#ff5555;'>Weak vs:</span> Grass, Lightning, Water"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #66ff66;'>"
+            + "<b style='color:#66ff66; font-size:16px;'>🌿 GRASS</b><br/>"
+            + "<span style='color:#00ff00;'>Strong vs:</span> Water, Ground<br/>"
+            + "<span style='color:#ff5555;'>Weak vs:</span> Fire, Flying, Bug, Grass"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #ffff66;'>"
+            + "<b style='color:#ffff66; font-size:16px;'>⚡ LIGHTNING</b><br/>"
+            + "<span style='color:#00ff00;'>Strong vs:</span> Water, Flying<br/>"
+            + "<span style='color:#ff5555;'>Weak vs:</span> Ground, Lightning"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #cc8844;'>"
+            + "<b style='color:#cc8844; font-size:16px;'>🪨 GROUND</b><br/>"
+            + "<span style='color:#00ff00;'>Strong vs:</span> Fire, Lightning<br/>"
+            + "<span style='color:#ff5555;'>Weak vs:</span> Grass, Ice, Water"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #66ddff;'>"
+            + "<b style='color:#66ddff; font-size:16px;'>❄️ ICE</b><br/>"
+            + "<span style='color:#00ff00;'>Strong vs:</span> Grass, Ground, Flying<br/>"
+            + "<span style='color:#ff5555;'>Weak vs:</span> Fire, Fighting, Ice"
+            + "</div>"
+            + "</body></html>";
+        
+        textPane.setText(html);
+        
+        JScrollPane scrollPane = new JScrollPane(textPane);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
+        panel.add(scrollPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createMechanicsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(new Color(20, 20, 30));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JTextPane textPane = new JTextPane();
+        textPane.setContentType("text/html");
+        textPane.setEditable(false);
+        textPane.setBackground(new Color(20, 20, 30));
+        
+        String html = "<html><body style='font-family:Arial; color:white; font-size:14px; line-height:1.8;'>"
+            + "<h2 style='color:#00FFFF; text-align:center;'>⚙️ BATTLE MECHANICS</h2>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0;'>"
+            + "<h3 style='color:#ffd700;'>🎯 Turn Order</h3>"
+            + "• <b>Priority Moves</b> (Buffs/Heals) always go first<br/>"
+            + "• <b>Speed</b> determines who attacks first if same priority<br/>"
+            + "• If speeds are equal, it's a 50/50 coin flip<br/>"
+            + "• When switching, enemy might attack first if faster"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0;'>"
+            + "<h3 style='color:#ffd700;'>💥 Damage Calculation</h3>"
+            + "• <b>Super Effective:</b> 2x damage (green indicator ▲)<br/>"
+            + "• <b>Not Very Effective:</b> 0.5x damage (red indicator ▼)<br/>"
+            + "• <b>Critical Hits:</b> 1.5x damage + screen flash<br/>"
+            + "• Attack and Defense stats affect final damage"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0;'>"
+            + "<h3 style='color:#ffd700;'>📊 Stats Explained</h3>"
+            + "• <b>HP:</b> Health Points - when it reaches 0, you faint<br/>"
+            + "• <b>ATK:</b> Attack power - higher = more damage dealt<br/>"
+            + "• <b>DEF:</b> Defense - higher = less damage taken<br/>"
+            + "• <b>SPD:</b> Speed - determines turn order"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0;'>"
+            + "<h3 style='color:#ffd700;'>⭐ Experience & Leveling</h3>"
+            + "• Defeating enemies grants XP (30 × enemy level)<br/>"
+            + "• Level up to increase all stats and restore HP<br/>"
+            + "• XP bar fills up at the bottom of your monster's info"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0;'>"
+            + "<h3 style='color:#ffd700;'>🏢 Floor Progression</h3>"
+            + "• Clear all 3 enemies to advance to next floor<br/>"
+            + "• Team fully heals between floors<br/>"
+            + "• Enemy levels increase with each floor<br/>"
+            + "• Game over if all your JavaMons faint"
+            + "</div>"
+            + "</body></html>";
+        
+        textPane.setText(html);
+        
+        JScrollPane scrollPane = new JScrollPane(textPane);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
+        panel.add(scrollPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createTipsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(new Color(20, 20, 30));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JTextPane textPane = new JTextPane();
+        textPane.setContentType("text/html");
+        textPane.setEditable(false);
+        textPane.setBackground(new Color(20, 20, 30));
+        
+        String html = "<html><body style='font-family:Arial; color:white; font-size:14px; line-height:1.8;'>"
+            + "<h2 style='color:#00FFFF; text-align:center;'>👤 TRAINER CLASSES</h2>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #ff6666;'>"
+            + "<b style='color:#ff6666; font-size:16px;'>🔥 ELEMENTALIST</b><br/>"
+            + "Master of type advantages. Deals <b>1.5x more damage</b> with super-effective moves!<br/>"
+            + "<span style='color:#ffd700;'>Class ULT:</span> Elemental Blast (varies by monster type)"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #6699ff;'>"
+            + "<b style='color:#6699ff; font-size:16px;'>🧠 STRATEGIST</b><br/>"
+            + "Tactical genius. Buff moves are <b>50% more effective</b>!<br/>"
+            + "<span style='color:#ffd700;'>Class ULT:</span> Master Plan (powerful buff)"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #ff9900;'>"
+            + "<b style='color:#ff9900; font-size:16px;'>⚔️ AGGRESSOR</b><br/>"
+            + "All-out attacker. <b>Higher critical hit rate</b> for devastating strikes!<br/>"
+            + "<span style='color:#ffd700;'>Class ULT:</span> All-In Strike (high crit chance)"
+            + "</div>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0; border-left:4px solid #66ff66;'>"
+            + "<b style='color:#66ff66; font-size:16px;'>🐾 BEASTMASTER</b><br/>"
+            + "Monster bond specialist. Team gets <b>bonus stats</b>!<br/>"
+            + "<span style='color:#ffd700;'>Class ULT:</span> Primal Roar (team buff)"
+            + "</div>"
+            + "<h2 style='color:#00FFFF; text-align:center; margin-top:30px;'>💡 PRO TIPS</h2>"
+            + "<div style='background-color:#1a1a25; padding:15px; margin:10px 0;'>"
+            + "✅ <b>Switch strategically!</b> If your monster is weak to enemy's type, switch to gain advantage<br/><br/>"
+            + "✅ <b>Use buffs early!</b> Buff moves go first and can turn the tide of battle<br/><br/>"
+            + "✅ <b>Watch HP colors!</b> Green = healthy, Yellow = careful, Red = critical<br/><br/>"
+            + "✅ <b>Save CLASS ULT!</b> Your 5th golden move is powerful - use it wisely<br/><br/>"
+            + "✅ <b>Type advantage matters!</b> 2x damage can make or break a fight<br/><br/>"
+            + "✅ <b>Speed ties!</b> Invest in speed to control turn order<br/><br/>"
+            + "✅ <b>Hover for info!</b> Hover over monsters and moves to see detailed stats"
+            + "</div>"
+            + "</body></html>";
+        
+        textPane.setText(html);
+        
+        JScrollPane scrollPane = new JScrollPane(textPane);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
+        panel.add(scrollPane, BorderLayout.CENTER);
+        return panel;
+    }
+    
     private Color getTypeColor(String type) {
         switch(type) {
             case "Fire": return new Color(238, 129, 48);
@@ -873,7 +1154,23 @@ public class GameWindow extends JFrame {
     }
     
     private void showAbilityTooltip(Ability a, Component anchor, double mult) {
-        infoTitle.setText(a.getName() + " (" + a.getType() + ")");
+        // IMPORTANT: Clear and rebuild tooltip to prevent monster hover from persisting
+        infoOverlay.removeAll();
+        infoOverlay.setLayout(new BorderLayout(10, 5));
+        infoOverlay.setPreferredSize(new Dimension(350, 180));
+        
+        // Title
+        infoTitle = new JLabel(a.getName() + " (" + a.getType() + ")", SwingConstants.CENTER);
+        infoTitle.setFont(new Font("Arial", Font.BOLD, 18));
+        infoTitle.setForeground(NEON_CYAN);
+        infoOverlay.add(infoTitle, BorderLayout.NORTH);
+        
+        // Body
+        infoBody = new JTextPane();
+        infoBody.setEditable(false);
+        infoBody.setContentType("text/html");
+        infoBody.setOpaque(false);
+        
         String desc = "<b>Desc:</b> " + a.getDescription();
         String eff = "";
         if(a.getType().equals("Buff") || a.getType().equals("Healing")) {
@@ -883,19 +1180,42 @@ public class GameWindow extends JFrame {
             eff = "<br/><b>Vs " + activeEnemyMon.getName() + ":</b> <span style='color:" + colorHex + "'>x" + mult + " Dmg</span>";
         }
         
-        String html = "<html><body style='font-family:Arial; color:white; font-size:12px; padding:5px;'>" + desc + "<br/>" + eff + "</body></html>";
+        String html = "<html><body style='font-family:Arial; color:white; font-size:12px; padding:5px;'>" 
+                      + desc + "<br/>" + eff + "</body></html>";
         infoBody.setText(html);
         
-        // NEW: Smooth Slide Effect for tooltip
-        Point loc = anchor.getLocationOnScreen(); SwingUtilities.convertPointFromScreen(loc, layeredPane);
-        int targetY = loc.y - 190; if(targetY < 0) targetY = loc.y + 80;
+        infoOverlay.add(infoBody, BorderLayout.CENTER);
         
-        infoOverlay.setLocation(loc.x + 20, targetY);
+        // Position
+        Point loc = anchor.getLocationOnScreen();
+        SwingUtilities.convertPointFromScreen(loc, layeredPane);
+        int targetY = loc.y - 190;
+        if(targetY < 0) targetY = loc.y + 80;
+        
+        infoOverlay.setBounds(loc.x + 20, targetY, 350, 180);
         infoOverlay.setVisible(true);
+        infoOverlay.revalidate();
+        infoOverlay.repaint();
     }
     
     private void showTypeTooltip(String type, Component anchor) {
-        infoTitle.setText(type);
+        // Clear and rebuild tooltip
+        infoOverlay.removeAll();
+        infoOverlay.setLayout(new BorderLayout(10, 5));
+        infoOverlay.setPreferredSize(new Dimension(350, 180));
+        
+        // Title
+        infoTitle = new JLabel(type, SwingConstants.CENTER);
+        infoTitle.setFont(new Font("Arial", Font.BOLD, 18));
+        infoTitle.setForeground(NEON_CYAN);
+        infoOverlay.add(infoTitle, BorderLayout.NORTH);
+        
+        // Body
+        infoBody = new JTextPane();
+        infoBody.setEditable(false);
+        infoBody.setContentType("text/html");
+        infoBody.setOpaque(false);
+        
         String weakTo = "", strongVs = "";
         if(type.equals("Water")) { strongVs = "Fire, Ground"; weakTo = "Grass, Lightning"; }
         else if(type.equals("Fire")) { strongVs = "Grass, Bug, Ice"; weakTo = "Water, Ground"; }
@@ -904,24 +1224,245 @@ public class GameWindow extends JFrame {
         else if(type.equals("Ground")) { strongVs = "Fire, Lightning"; weakTo = "Grass, Ice"; }
         else { strongVs = "???"; weakTo = "???"; }
         
-        String html = "<html><body style='font-family:Arial; color:white; font-size:12px; padding:5px;'>" + "<span style='color:#00FF00'>Strong Vs:</span> " + strongVs + "<br/>" + "<span style='color:#FF5555'>Weak To:</span> " + weakTo + "</body></html>";
+        String html = "<html><body style='font-family:Arial; color:white; font-size:12px; padding:5px;'>" 
+                      + "<span style='color:#00FF00'>Strong Vs:</span> " + strongVs + "<br/>" 
+                      + "<span style='color:#FF5555'>Weak To:</span> " + weakTo + "</body></html>";
         infoBody.setText(html);
-        Point loc = anchor.getLocationOnScreen(); SwingUtilities.convertPointFromScreen(loc, layeredPane);
-        infoOverlay.setLocation(loc.x, loc.y + 30); infoOverlay.setVisible(true);
+        
+        infoOverlay.add(infoBody, BorderLayout.CENTER);
+        
+        // Position
+        Point loc = anchor.getLocationOnScreen();
+        SwingUtilities.convertPointFromScreen(loc, layeredPane);
+        
+        infoOverlay.setBounds(loc.x, loc.y + 30, 350, 180);
+        infoOverlay.setVisible(true);
+        infoOverlay.revalidate();
+        infoOverlay.repaint();
     }
     
+ // Replace the addMonsterHover method with this improved version:
+
     private void addMonsterHover(Component c, boolean isPlayer) {
         c.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 Monster m = isPlayer ? activePlayerMon : activeEnemyMon;
-                infoTitle.setText(m.getName() + " (Lvl " + m.getLevel() + ")");
-                String html = "<html><body style='font-family:Arial; color:white; font-size:12px; padding:5px;'>" + "Type: <span style='color:#00FFFF'>" + m.getType() + "</span><br/>" + "ATK: " + m.getAttack() + " | DEF: " + m.getDefense() + "<br/>" + "SPD: " + m.getSpeed() + "</body></html>";
-                infoBody.setText(html);
-                Point loc = c.getLocationOnScreen(); SwingUtilities.convertPointFromScreen(loc, layeredPane);
-                infoOverlay.setLocation(loc.x + 50, loc.y + 50); infoOverlay.setVisible(true);
+                showEnhancedMonsterTooltip(m, c);
             }
-            public void mouseExited(MouseEvent e) { infoOverlay.setVisible(false); }
+            public void mouseExited(MouseEvent e) { 
+                infoOverlay.setVisible(false); 
+            }
         });
+    }
+
+    private void showEnhancedMonsterTooltip(Monster m, Component anchor) {
+        // Clear and rebuild tooltip
+        infoOverlay.removeAll();
+        infoOverlay.setLayout(new BorderLayout(0, 0));
+        infoOverlay.setPreferredSize(new Dimension(380, 280));
+        
+        // Header Section with gradient background
+        JPanel headerPanel = new JPanel(new BorderLayout(10, 5));
+        headerPanel.setBackground(new Color(15, 15, 25, 250));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        
+        // Left: Monster Icon (small)
+        JLabel miniIcon = new JLabel();
+        if (m.getImage() != null) {
+            ImageIcon icon = new ImageIcon(m.getImage().getScaledInstance(60, 60, Image.SCALE_SMOOTH));
+            miniIcon.setIcon(icon);
+        }
+        headerPanel.add(miniIcon, BorderLayout.WEST);
+        
+        // Center: Name + Level + Type
+        JPanel namePanel = new JPanel();
+        namePanel.setLayout(new BoxLayout(namePanel, BoxLayout.Y_AXIS));
+        namePanel.setOpaque(false);
+        
+        JLabel nameLabel = new JLabel(m.getName());
+        nameLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        nameLabel.setForeground(NEON_CYAN);
+        nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        JPanel levelTypePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        levelTypePanel.setOpaque(false);
+        
+        JLabel levelLabel = new JLabel("Lv. " + m.getLevel());
+        levelLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        levelLabel.setForeground(NEON_GOLD);
+        
+        JLabel typeBadge = new JLabel(m.getType().toUpperCase());
+        typeBadge.setFont(new Font("Arial", Font.BOLD, 11));
+        typeBadge.setForeground(Color.WHITE);
+        typeBadge.setOpaque(true);
+        typeBadge.setBackground(getTypeColorForTooltip(m.getType()));
+        typeBadge.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        
+        levelTypePanel.add(levelLabel);
+        levelTypePanel.add(typeBadge);
+        
+        namePanel.add(nameLabel);
+        namePanel.add(Box.createVerticalStrut(5));
+        namePanel.add(levelTypePanel);
+        
+        headerPanel.add(namePanel, BorderLayout.CENTER);
+        
+        infoOverlay.add(headerPanel, BorderLayout.NORTH);
+        
+        // Body Section: Stats Grid
+        JPanel bodyPanel = new JPanel(new GridLayout(4, 1, 0, 8));
+        bodyPanel.setOpaque(false);
+        bodyPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        
+        // HP Stat
+        bodyPanel.add(createStatRow("HP", m.getCurrentHP() + " / " + m.getMaxHP(), 
+            NEON_GREEN, (double) m.getCurrentHP() / m.getMaxHP()));
+        
+        // ATK Stat
+        bodyPanel.add(createStatRow("ATK", String.valueOf(m.getAttack()), 
+            new Color(255, 100, 100), Math.min(1.0, m.getAttack() / 150.0)));
+        
+        // DEF Stat
+        bodyPanel.add(createStatRow("DEF", String.valueOf(m.getDefense()), 
+            new Color(100, 150, 255), Math.min(1.0, m.getDefense() / 150.0)));
+        
+        // SPD Stat
+        bodyPanel.add(createStatRow("SPD", String.valueOf(m.getSpeed()), 
+            new Color(255, 215, 0), Math.min(1.0, m.getSpeed() / 150.0)));
+        
+        infoOverlay.add(bodyPanel, BorderLayout.CENTER);
+        
+        // Footer: Status Effects
+        if (!m.getActiveStatuses().isEmpty()) {
+            JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+            footerPanel.setOpaque(false);
+            footerPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(50, 50, 70)),
+                BorderFactory.createEmptyBorder(10, 20, 10, 20)
+            ));
+            
+            JLabel statusLabel = new JLabel("Status: ");
+            statusLabel.setFont(new Font("Arial", Font.BOLD, 12));
+            statusLabel.setForeground(Color.LIGHT_GRAY);
+            footerPanel.add(statusLabel);
+            
+            for (StatusEffect s : m.getActiveStatuses()) {
+                JLabel statusIcon = new JLabel(s.name.toUpperCase());
+                statusIcon.setFont(new Font("Arial", Font.BOLD, 10));
+                statusIcon.setForeground(Color.WHITE);
+                statusIcon.setOpaque(true);
+                
+                if (s.type.equals("DMG")) {
+                    statusIcon.setBackground(new Color(255, 100, 0));
+                } else if (s.type.equals("STOP")) {
+                    statusIcon.setBackground(new Color(100, 100, 255));
+                } else {
+                    statusIcon.setBackground(new Color(50, 200, 50));
+                }
+                
+                statusIcon.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
+                footerPanel.add(statusIcon);
+            }
+            
+            infoOverlay.add(footerPanel, BorderLayout.SOUTH);
+        }
+        
+        // Position tooltip
+        Point loc = anchor.getLocationOnScreen();
+        SwingUtilities.convertPointFromScreen(loc, layeredPane);
+        
+        // Smart positioning (avoid going off-screen)
+        int tooltipX = loc.x + 50;
+        int tooltipY = loc.y;
+        
+        if (tooltipX + 380 > layeredPane.getWidth()) {
+            tooltipX = loc.x - 400; // Show on left side
+        }
+        
+        if (tooltipY + 280 > layeredPane.getHeight()) {
+            tooltipY = layeredPane.getHeight() - 300;
+        }
+        
+        infoOverlay.setBounds(tooltipX, tooltipY, 380, 280);
+        infoOverlay.setVisible(true);
+        infoOverlay.revalidate();
+        infoOverlay.repaint();
+    }
+
+    private JPanel createStatRow(String statName, String statValue, Color barColor, double percentage) {
+        JPanel row = new JPanel(new BorderLayout(10, 0));
+        row.setOpaque(false);
+        
+        // Stat Label
+        JLabel nameLabel = new JLabel(statName);
+        nameLabel.setFont(new Font("Arial", Font.BOLD, 13));
+        nameLabel.setForeground(Color.LIGHT_GRAY);
+        nameLabel.setPreferredSize(new Dimension(45, 20));
+        row.add(nameLabel, BorderLayout.WEST);
+        
+        // Stat Bar Container
+        JPanel barContainer = new JPanel(new BorderLayout(5, 0));
+        barContainer.setOpaque(false);
+        
+        // Progress Bar
+        JPanel progressBar = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                int w = getWidth();
+                int h = getHeight();
+                
+                // Background
+                g2d.setColor(new Color(40, 40, 50));
+                g2d.fillRoundRect(0, 0, w, h, h, h);
+                
+                // Fill
+                int fillWidth = (int) (w * percentage);
+                g2d.setColor(barColor);
+                g2d.fillRoundRect(0, 0, fillWidth, h, h, h);
+                
+                // Highlight
+                g2d.setColor(new Color(255, 255, 255, 40));
+                g2d.fillRoundRect(0, 0, fillWidth, h / 2, h / 2, h / 2);
+                
+                // Border
+                g2d.setColor(new Color(20, 20, 30));
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawRoundRect(0, 0, w - 1, h - 1, h, h);
+            }
+        };
+        progressBar.setPreferredSize(new Dimension(180, 18));
+        progressBar.setOpaque(false);
+        
+        barContainer.add(progressBar, BorderLayout.CENTER);
+        
+        // Value Label
+        JLabel valueLabel = new JLabel(statValue);
+        valueLabel.setFont(new Font("Monospaced", Font.BOLD, 13));
+        valueLabel.setForeground(Color.WHITE);
+        valueLabel.setPreferredSize(new Dimension(80, 20));
+        barContainer.add(valueLabel, BorderLayout.EAST);
+        
+        row.add(barContainer, BorderLayout.CENTER);
+        
+        return row;
+    }
+
+    private Color getTypeColorForTooltip(String type) {
+        switch(type) {
+            case "Fire": return new Color(238, 129, 48);
+            case "Water": return new Color(99, 144, 240);
+            case "Grass": return new Color(122, 199, 76);
+            case "Lightning": return new Color(247, 208, 44);
+            case "Ice": return new Color(150, 217, 214);
+            case "Ground": return new Color(226, 191, 101);
+            case "Bug": return new Color(166, 185, 26);
+            case "Dark": return new Color(112, 87, 70);
+            default: return Color.GRAY;
+        }
     }
     
     private int getMovePriority(Ability move) {
@@ -1527,30 +2068,45 @@ public class GameWindow extends JFrame {
     }
 
     private void handleFloorClear() {
+        // --- SOUND EFFECT FOR SUCCESS ---
+        playSoundEffect("/javamon/assets/floorclear.wav"); 
+        
         JOptionPane.showMessageDialog(this, "FLOOR " + currentFloor + " CLEARED!\nTeam Healed.");
         for(Monster m : playerTeam) m.setCurrentHP(m.getMaxHP()); 
         
-        currentFloor++; txtFloor.setText("FLOOR " + currentFloor);
+        currentFloor++; 
+        txtFloor.setText("FLOOR " + currentFloor);
+        
+        // NEW: Show Floor Banner
+        animateTurnBanner("FLOOR " + currentFloor, NEON_GOLD);
         
         enemyTeam.clear(); 
         List<Monster> pool = new ArrayList<>(masterMonsterPool); 
         java.util.Collections.shuffle(pool);
         for(int i=0; i<3 && i<pool.size(); i++) {
             Monster enemy = pool.get(i).copy();
-            enemy.setLevel(currentFloor + (int)(Math.random() * 3));
+         // Progressive enemy scaling: starts at floor level, adds small random variance
+            int baseLevel = currentFloor;
+            int variance = (currentFloor <= 3) ? 0 : (int)(Math.random() * 2); // No variance early game
+            enemy.setLevel(baseLevel + variance);
             enemyTeam.add(enemy);
         }
         
         activeEnemyMon = enemyTeam.get(0); 
         updateBattleState();
         
-        txtWhat.setText("Wild " + activeEnemyMon.getName() + " appeared!");
-        animateTurnBanner("PLAYER TURN", NEON_CYAN);
-        
-        // USE NEW ENCOUNTER ANIMATION HERE INSTEAD OF animateBattleStart
-        wildEncounterAnimation(null);
-        
-        isTurnInProgress = false;
+        // Wait for floor banner to finish before showing wild encounter
+        Timer bannerDelay = new Timer(2500, e -> {
+            txtWhat.setText("Wild " + activeEnemyMon.getName() + " appeared!");
+            animateTurnBanner("PLAYER TURN", NEON_CYAN);
+            
+            // USE NEW ENCOUNTER ANIMATION HERE INSTEAD OF animateBattleStart
+            wildEncounterAnimation(null);
+            
+            isTurnInProgress = false;
+        });
+        bannerDelay.setRepeats(false);
+        bannerDelay.start();
     }
     
     private void handlePlayerFaint() {
@@ -1562,6 +2118,9 @@ public class GameWindow extends JFrame {
             }
 
             if (lost) {
+                // Stop battle music
+                soundManager.stopGameMusic();
+                
                 SwingUtilities.invokeLater(() -> {
                     GameOver go = new GameOver(currentFloor, () -> {
                         SwingUtilities.invokeLater(() -> {
@@ -1655,37 +2214,301 @@ public class GameWindow extends JFrame {
 
     private void updateSwitchPanel() {
         switchPanel.removeAll();
-        JPanel contentBox = new JPanel(); contentBox.setLayout(new BoxLayout(contentBox, BoxLayout.Y_AXIS)); contentBox.setOpaque(false);
-        JLabel title = new JLabel("TEAM ROSTER"); title.setFont(new Font("Arial", Font.BOLD, 40)); title.setForeground(Color.WHITE); title.setAlignmentX(Component.CENTER_ALIGNMENT); contentBox.add(title);
-        JPanel cardsPanel = new JPanel(new GridLayout(1, 3, 20, 0)); cardsPanel.setOpaque(false);
+        switchPanel.setLayout(new BorderLayout());
+        
+        // Create main container with padding
+        JPanel mainContainer = new JPanel();
+        mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.Y_AXIS));
+        mainContainer.setOpaque(false);
+        mainContainer.setBorder(BorderFactory.createEmptyBorder(40, 60, 40, 60));
+        
+        // Title Section
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        titlePanel.setOpaque(false);
+        
+        JLabel title = new JLabel("CHOOSE YOUR JAVAMON");
+        title.setFont(new Font("Impact", Font.BOLD, 48));
+        title.setForeground(NEON_CYAN);
+        titlePanel.add(title);
+        
+        mainContainer.add(titlePanel);
+        mainContainer.add(Box.createVerticalStrut(30));
+        
+        // Cards Container with proper centering
+        JPanel cardsContainer = new JPanel(new GridBagLayout());
+        cardsContainer.setOpaque(false);
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.insets = new Insets(0, 15, 0, 15); // Horizontal spacing between cards
         
         for (Monster m : playerTeam) {
-            JPanel card = new JPanel(); card.setPreferredSize(new Dimension(220, 320)); card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS)); card.setBackground(DARK_CARD_BG);
-            Color borderCol = (m == activePlayerMon) ? NEON_CYAN : (m.isFainted() ? Color.RED : Color.GRAY);
-            card.setBorder(BorderFactory.createLineBorder(borderCol, 3));
-            JLabel icon = new JLabel(); if(m.getImage() != null) icon.setIcon(new ImageIcon(m.getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH))); icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-            JLabel name = new JLabel(m.getName()); name.setFont(new Font("Arial", Font.BOLD, 20)); name.setForeground(Color.WHITE); name.setAlignmentX(Component.CENTER_ALIGNMENT);
-            JLabel lvl = new JLabel("Lvl " + m.getLevel()); lvl.setFont(new Font("Arial", Font.BOLD, 16)); lvl.setForeground(NEON_GOLD); lvl.setAlignmentX(Component.CENTER_ALIGNMENT);
-            JLabel hpText = new JLabel(m.getCurrentHP() + "/" + m.getMaxHP()); hpText.setFont(new Font("Monospaced", Font.BOLD, 18)); hpText.setForeground(m.isFainted() ? Color.RED : NEON_GREEN); hpText.setAlignmentX(Component.CENTER_ALIGNMENT);
-            card.add(Box.createVerticalStrut(20)); card.add(icon); card.add(Box.createVerticalStrut(5)); card.add(name); card.add(lvl); card.add(Box.createVerticalStrut(5)); card.add(hpText);
+            JPanel card = createMonsterCard(m);
+            cardsContainer.add(card, gbc);
+            gbc.gridx++;
+        }
+        
+        mainContainer.add(cardsContainer);
+        mainContainer.add(Box.createVerticalStrut(30));
+        
+        // Close Button
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setOpaque(false);
+        
+        JButton closeBtn = new JButton("BACK");
+        closeBtn.setFont(new Font("Arial", Font.BOLD, 20));
+        closeBtn.setPreferredSize(new Dimension(200, 50));
+        closeBtn.setBackground(new Color(80, 80, 80));
+        closeBtn.setForeground(Color.WHITE);
+        closeBtn.setFocusPainted(false);
+        closeBtn.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.GRAY, 2),
+            BorderFactory.createEmptyBorder(10, 30, 10, 30)
+        ));
+        closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        closeBtn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                closeBtn.setBackground(new Color(100, 100, 100));
+            }
+            public void mouseExited(MouseEvent e) {
+                closeBtn.setBackground(new Color(80, 80, 80));
+            }
+        });
+        
+        closeBtn.addActionListener(e -> {
+            playSoundEffect("/javamon/assets/ButtonsFx.wav");
+            switchPanel.setVisible(false);
+        });
+        
+        buttonPanel.add(closeBtn);
+        mainContainer.add(buttonPanel);
+        
+        switchPanel.add(mainContainer, BorderLayout.CENTER);
+        switchPanel.revalidate();
+        switchPanel.repaint();
+    }
+
+    private JPanel createMonsterCard(Monster m) {
+        JPanel card = new JPanel();
+        card.setLayout(new BorderLayout(10, 10));
+        card.setPreferredSize(new Dimension(280, 380));
+        card.setMinimumSize(new Dimension(280, 380));
+        card.setMaximumSize(new Dimension(280, 380));
+        
+        // Determine card state
+        boolean isActive = (m == activePlayerMon);
+        boolean isFainted = m.isFainted();
+        boolean isAvailable = !isActive && !isFainted;
+        
+        // Card background and border
+        if (isFainted) {
+            card.setBackground(new Color(40, 30, 30, 240));
+            card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(150, 50, 50), 3),
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)
+            ));
+        } else if (isActive) {
+            card.setBackground(new Color(30, 50, 60, 240));
+            card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(NEON_CYAN, 4),
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)
+            ));
+        } else {
+            card.setBackground(DARK_CARD_BG);
+            card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(100, 100, 100), 3),
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)
+            ));
+        }
+        
+        // Top Section: Status Badge
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        topPanel.setOpaque(false);
+        
+        JLabel statusBadge = new JLabel();
+        statusBadge.setFont(new Font("Arial", Font.BOLD, 12));
+        statusBadge.setOpaque(true);
+        statusBadge.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+        
+        if (isFainted) {
+            statusBadge.setText("FAINTED");
+            statusBadge.setBackground(new Color(200, 50, 50));
+            statusBadge.setForeground(Color.WHITE);
+        } else if (isActive) {
+            statusBadge.setText("IN BATTLE");
+            statusBadge.setBackground(NEON_CYAN);
+            statusBadge.setForeground(Color.BLACK);
+        } else {
+            statusBadge.setText("READY");
+            statusBadge.setBackground(NEON_GREEN);
+            statusBadge.setForeground(Color.BLACK);
+        }
+        
+        topPanel.add(statusBadge);
+        card.add(topPanel, BorderLayout.NORTH);
+        
+        // Center Section: Image + Info
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        centerPanel.setOpaque(false);
+        
+        // Monster Image
+        JLabel iconLabel = new JLabel();
+        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        if (m.getImage() != null) {
+            ImageIcon scaledIcon = new ImageIcon(
+                m.getImage().getScaledInstance(140, 140, Image.SCALE_SMOOTH)
+            );
+            iconLabel.setIcon(scaledIcon);
+        }
+        centerPanel.add(iconLabel);
+        centerPanel.add(Box.createVerticalStrut(10));
+        
+        // Name
+        JLabel nameLabel = new JLabel(m.getName());
+        nameLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        nameLabel.setForeground(isFainted ? Color.GRAY : Color.WHITE);
+        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        centerPanel.add(nameLabel);
+        centerPanel.add(Box.createVerticalStrut(5));
+        
+        // Level
+        JLabel levelLabel = new JLabel("Lv. " + m.getLevel());
+        levelLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        levelLabel.setForeground(NEON_GOLD);
+        levelLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        centerPanel.add(levelLabel);
+        centerPanel.add(Box.createVerticalStrut(10));
+        
+        // HP Bar Container
+        JPanel hpContainer = new JPanel();
+        hpContainer.setLayout(new BoxLayout(hpContainer, BoxLayout.Y_AXIS));
+        hpContainer.setOpaque(false);
+        hpContainer.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        JLabel hpLabel = new JLabel("HP");
+        hpLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        hpLabel.setForeground(Color.LIGHT_GRAY);
+        hpLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        hpContainer.add(hpLabel);
+        hpContainer.add(Box.createVerticalStrut(3));
+        
+        // HP Bar
+        JPanel hpBarPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                int width = getWidth();
+                int height = getHeight();
+                
+                // Background
+                g2d.setColor(new Color(50, 50, 50));
+                g2d.fillRoundRect(0, 0, width, height, height, height);
+                
+                // HP Fill
+                double hpPercent = (double) m.getCurrentHP() / m.getMaxHP();
+                int fillWidth = (int) (width * hpPercent);
+                
+                Color hpColor;
+                if (hpPercent > 0.5) {
+                    hpColor = new Color(80, 220, 80);
+                } else if (hpPercent > 0.2) {
+                    hpColor = new Color(255, 200, 50);
+                } else {
+                    hpColor = new Color(255, 80, 80);
+                }
+                
+                g2d.setColor(hpColor);
+                g2d.fillRoundRect(0, 0, fillWidth, height, height, height);
+                
+                // Border
+                g2d.setColor(Color.BLACK);
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawRoundRect(0, 0, width - 1, height - 1, height, height);
+            }
+        };
+        hpBarPanel.setPreferredSize(new Dimension(200, 20));
+        hpBarPanel.setMaximumSize(new Dimension(200, 20));
+        hpBarPanel.setOpaque(false);
+        hpContainer.add(hpBarPanel);
+        hpContainer.add(Box.createVerticalStrut(3));
+        
+        // HP Text
+        JLabel hpText = new JLabel(m.getCurrentHP() + " / " + m.getMaxHP());
+        hpText.setFont(new Font("Monospaced", Font.BOLD, 16));
+        hpText.setForeground(isFainted ? Color.RED : NEON_GREEN);
+        hpText.setAlignmentX(Component.CENTER_ALIGNMENT);
+        hpContainer.add(hpText);
+        
+        centerPanel.add(hpContainer);
+        card.add(centerPanel, BorderLayout.CENTER);
+        
+        // Interaction
+        if (isAvailable) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            
             card.addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) {
+                    card.setBackground(new Color(50, 50, 60, 240));
+                    card.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(NEON_CYAN, 3),
+                        BorderFactory.createEmptyBorder(15, 15, 15, 15)
+                    ));
+                }
+                
+                public void mouseExited(MouseEvent e) {
+                    card.setBackground(DARK_CARD_BG);
+                    card.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(100, 100, 100), 3),
+                        BorderFactory.createEmptyBorder(15, 15, 15, 15)
+                    ));
+                }
+                
                 public void mouseClicked(MouseEvent e) {
-                    if(m.isFainted() || m == activePlayerMon) return;
+                    playSoundEffect("/javamon/assets/ButtonsFx.wav");
                     
-                    // Call new Pokemon Style Switch
                     pokemonStyleSwitch(m, () -> {
-                         Timer t = new Timer(800, evt -> {
-                            performAttackSequence(activeEnemyMon, activePlayerMon, activeEnemyMon.getAbilities().get(0), false, () -> endTurn());
-                        });
-                        t.setRepeats(false); t.start();
+                        Ability enemyMove = activeEnemyMon.getAbilities().get((int)(Math.random() * 4));
+                        
+                        boolean enemyFirst;
+                        if (activeEnemyMon.getSpeed() > activePlayerMon.getSpeed()) {
+                            enemyFirst = true;
+                        } else if (activePlayerMon.getSpeed() > activeEnemyMon.getSpeed()) {
+                            enemyFirst = false;
+                        } else {
+                            enemyFirst = Math.random() < 0.5;
+                        }
+
+                        if (enemyFirst) {
+                            animateTurnBanner("ENEMY TURN", DAMAGE_RED);
+                            Timer t = new Timer(1500, evt -> {
+                                performAttackSequence(activeEnemyMon, activePlayerMon, enemyMove, false, () -> endTurn());
+                            });
+                            t.setRepeats(false); 
+                            t.start();
+                        } else {
+                            animateTurnBanner("PLAYER TURN", NEON_CYAN);
+                            Timer t = new Timer(800, evt -> {
+                                isTurnInProgress = false;
+                                startIdleAnimation(jMon1Label, PLAYER_Y, true);
+                                startIdleAnimation(jMon2Label, ENEMY_Y, false);
+                            });
+                            t.setRepeats(false); 
+                            t.start();
+                        }
                     });
                 }
-            }); cardsPanel.add(card);
+            });
+        } else {
+            card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
         }
-        contentBox.add(cardsPanel);
-        JButton closeBtn = new JButton("CLOSE"); closeBtn.setBackground(Color.RED); closeBtn.setForeground(Color.WHITE); closeBtn.addActionListener(e->switchPanel.setVisible(false)); contentBox.add(closeBtn);
-        switchPanel.add(contentBox); switchPanel.revalidate(); repaint();
+        
+        return card;
     }
 
     private void updateBattleState() {
@@ -1776,6 +2599,47 @@ public class GameWindow extends JFrame {
         fightPanel.setVisible(false); switchPanel.setVisible(false); helpPanel.setVisible(false); if(p != null) p.setVisible(true);
     }
     
+    // ========================================
+    // SOUND EFFECT PLAYBACK METHOD (FOR IN-GAME EFFECTS)
+    // ========================================
+    private void playSoundEffect(String path) {
+        try {
+            URL url = getClass().getResource(path);
+            if(url == null) {
+                System.err.println("Sound file not found: " + path);
+                return;
+            }
+            
+            AudioInputStream audioIn = AudioSystem.getAudioInputStream(url);
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioIn);
+            
+            // Get volume preference from the user settings
+            Preferences prefs = Preferences.userNodeForPackage(GameWindow.class);
+            int savedVolume = prefs.getInt("volume", 50);
+            
+            if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                FloatControl gain = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+                float range = gain.getMaximum() - gain.getMinimum();
+                // Set the volume based on the saved preference
+                float gainVal = (range * (savedVolume / 100f)) + gain.getMinimum();
+                gain.setValue(gainVal);
+            }
+            
+            clip.start();
+            
+            clip.addLineListener(event -> {
+                if (event.getType() == LineEvent.Type.STOP) {
+                    clip.close();
+                }
+            });
+            
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
+            System.err.println("Error playing sound effect: " + e.getMessage());
+        }
+    }
+
+
     static class FadableSprite extends JLabel {
         private float alpha = 1.0f;
         private Color flashColor = null;

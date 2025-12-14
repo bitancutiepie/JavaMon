@@ -19,9 +19,21 @@ public class AbilityLogic {
         // --- 2. OFFENSIVE MOVES (Target ENEMY) ---
         
         // Check Critical Hit
-        boolean isCrit = random.nextDouble() < 0.0625;
-        double critMult = isCrit ? 1.5 : 1.0;
-        if (isCrit) log.append("[CRIT] "); 
+     // REBALANCED CRITICAL HIT SYSTEM
+        double critChance = 0.0625; // Base 6.25%
+        
+        if ("AGGRESSOR".equalsIgnoreCase(trainerClass)) {
+            critChance = 0.15; // 15% for Aggressor
+        }
+        
+        if (ability.getName().contains("Razor") || ability.getName().contains("Slash")) {
+            critChance += 0.10;
+        }
+        
+        boolean isCrit = random.nextDouble() < critChance;
+        double critMult = isCrit ? BattleMechanics.CRIT_MULTIPLIER : 1.0;
+        
+        if (isCrit) log.append("[CRIT] ");
 
         // Class Perk: Mystic (Random Status)
         if ("MYSTIC".equalsIgnoreCase(trainerClass) && random.nextDouble() < 0.30) {

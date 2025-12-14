@@ -4,6 +4,15 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * REBALANCED DATABASE V3.0
+ * 
+ * KEY CHANGES:
+ * 1. HP buffed significantly (85-105 range)
+ * 2. Attack/Defense more balanced (15-22 range)
+ * 3. Speed more varied (10-28 range)
+ * 4. Better role differentiation (tanks, speedsters, balanced)
+ */
 public class DatabaseManager {
 
     private static final String DB_FILE = "javamon.db";
@@ -43,7 +52,7 @@ public class DatabaseManager {
     }
 
     private void populateInitialData(Connection conn) throws SQLException {
-        System.out.println("Applying RPG Balance Patch v4.0 (Progressive Stats)...");
+        System.out.println("Applying Balance Patch v5.0 (No One-Shot Meta)...");
         String insertAbility = "INSERT INTO Ability (id, name, description, type) VALUES (?, ?, ?, ?)";
         
         try (PreparedStatement pstmt = conn.prepareStatement(insertAbility)) {
@@ -63,19 +72,19 @@ public class DatabaseManager {
             addAbil(pstmt, 109, "Razor Leaf", "Reliable Grass Dmg. High Crit.", "Grass");
             addAbil(pstmt, 110, "Solar Beam", "Massive Dmg.", "Grass");
             addAbil(pstmt, 111, "Synthesis", "Restores HP.", "Healing");
-            addAbil(pstmt, 112, "Spore", "Chance to Sleep enemy.", "Debuff");
+            addAbil(pstmt, 112, "Spore", "Chance to Sleep enemy.", "Grass");
 
             // --- BUG ---
             addAbil(pstmt, 113, "X-Scissor", "Reliable Bug Dmg.", "Bug");
             addAbil(pstmt, 114, "Megahorn", "High Dmg, Low Accuracy.", "Bug");
             addAbil(pstmt, 115, "Harden", "Raises Defense.", "Buff");
-            addAbil(pstmt, 116, "String Shot", "Lowers Enemy Speed.", "Debuff");
+            addAbil(pstmt, 116, "String Shot", "Lowers Enemy Speed.", "Bug");
 
             // --- LIGHTNING ---
             addAbil(pstmt, 117, "Spark", "Reliable Lightning Dmg.", "Lightning");
             addAbil(pstmt, 118, "Thunder", "Massive Dmg, low accuracy.", "Lightning");
             addAbil(pstmt, 119, "Charge", "Raises Attack.", "Buff");
-            addAbil(pstmt, 120, "Thunder Wave", "Paralyzes enemy.", "Debuff");
+            addAbil(pstmt, 120, "Thunder Wave", "Paralyzes enemy.", "Lightning");
 
             // --- FLYING ---
             addAbil(pstmt, 121, "Wing Attack", "Reliable Flying Dmg.", "Flying");
@@ -93,7 +102,7 @@ public class DatabaseManager {
             addAbil(pstmt, 129, "Bite", "Reliable Dark Dmg.", "Dark");
             addAbil(pstmt, 130, "Crunch", "High Dark Dmg. Lowers Def.", "Dark");
             addAbil(pstmt, 131, "Nasty Plot", "Sharply raises Attack.", "Buff");
-            addAbil(pstmt, 132, "Dark Void", "Puts enemy to sleep.", "Debuff");
+            addAbil(pstmt, 132, "Dark Void", "Puts enemy to sleep.", "Dark");
 
             // --- GROUND ---
             addAbil(pstmt, 133, "Mud Shot", "Ground Dmg. Lowers Speed.", "Ground");
@@ -104,50 +113,66 @@ public class DatabaseManager {
             pstmt.executeBatch();
         }
 
-        // --- MONSTER STATS (Rebalanced for RPG Progression) ---
-        // Base Stats are now "Level 0" stats. They grow as level increases.
-        // HP: 50-90 range | Atk/Def: 10-25 range
+        /**
+         * REBALANCED MONSTER STATS V3.0
+         * 
+         * PHILOSOPHY:
+         * - HP: 85-105 (everyone can survive 3-4 hits)
+         * - Attack: 15-22 (moderate damage, no one-shots)
+         * - Defense: 15-22 (balanced with attack)
+         * - Speed: 10-28 (varied for strategy)
+         * 
+         * ARCHETYPES:
+         * - Tanks: High HP/Def, Low Spd (Guyum, Sawalee)
+         * - Speedsters: High Spd/Atk, Lower HP (Lectric, Alailaw)
+         * - Balanced: Even stats (Wilkeens, Dahmoe)
+         * - Glass Cannons: High Atk, Lower Def (Boombero, Sparky)
+         */
         
         String insertMonster = "INSERT INTO Monster (id, name, type, base_hp, base_atk, base_def, base_spd, a1, a2, a3, a4) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(insertMonster)) {
-            // Water
-            addMon(pstmt, 1, "Wilkeens", "Water", 75, 14, 18, 12, 101, 102, 103, 104); 
-            addMon(pstmt, 2, "Hose", "Water", 65, 18, 12, 16, 101, 102, 104, 119); 
+        	// Water Monsters - Balanced/Defensive
+            addMon(pstmt, 1, "Wilkeens", "Water", 95, 18, 20, 16, 101, 102, 103, 104);
+            addMon(pstmt, 2, "Hose", "Water", 90, 19, 17, 20, 101, 102, 104, 119);
 
-            // Fire
-            addMon(pstmt, 3, "Boombero", "Fire", 60, 20, 8, 18, 105, 106, 107, 108); 
-            addMon(pstmt, 4, "Apoyet", "Fire", 55, 16, 12, 22, 105, 106, 124, 108); 
+            // Fire Monsters - High Attack/Speed
+            addMon(pstmt, 3, "Boombero", "Fire", 88, 22, 15, 23, 105, 106, 107, 108);
+            addMon(pstmt, 4, "Apoyet", "Fire", 85, 21, 14, 26, 105, 106, 124, 108);
 
-            // Grass
-            addMon(pstmt, 5, "Dahmoe", "Grass", 80, 14, 16, 10, 109, 110, 111, 112); 
-            addMon(pstmt, 6, "Santan", "Grass", 70, 17, 12, 14, 109, 110, 112, 120); 
+            // Grass Monsters - High HP/Defense
+            addMon(pstmt, 5, "Dahmoe", "Grass", 100, 17, 19, 15, 109, 110, 111, 112);
+            addMon(pstmt, 6, "Santan", "Grass", 95, 18, 17, 18, 109, 110, 112, 120);
 
-            // Bug
-            addMon(pstmt, 7, "Guyum", "Bug", 60, 14, 24, 8, 113, 114, 115, 116); 
-            addMon(pstmt, 8, "Salagoo", "Bug", 70, 16, 14, 12, 113, 114, 116, 103); 
+            // Bug Monsters - Defensive Walls
+            addMon(pstmt, 7, "Guyum", "Bug", 98, 16, 24, 12, 113, 114, 115, 116);
+            addMon(pstmt, 8, "Salagoo", "Bug", 93, 19, 19, 16, 113, 114, 116, 103);
 
-            // Lightning
-            addMon(pstmt, 9, "Lectric", "Lightning", 55, 18, 8, 25, 117, 118, 119, 120); 
-            addMon(pstmt, 10, "Sparky", "Lightning", 60, 22, 10, 18, 117, 118, 119, 121); 
+            // Lightning Monsters - Speed/Attack Focus
+            addMon(pstmt, 9, "Lectric", "Lightning", 85, 22, 14, 28, 117, 118, 119, 120);
+            addMon(pstmt, 10, "Sparky", "Lightning", 88, 21, 16, 25, 117, 118, 119, 121);
 
-            // Ground
-            addMon(pstmt, 11, "Sawalee", "Ground", 90, 15, 20, 6, 133, 134, 135, 115); 
-            addMon(pstmt, 12, "Elypante", "Ground", 85, 19, 16, 8, 133, 134, 136, 104); 
+            // Ground Monsters - High HP/Defense
+            addMon(pstmt, 11, "Sawalee", "Ground", 105, 19, 22, 11, 133, 134, 135, 115);
+            addMon(pstmt, 12, "Elypante", "Ground", 100, 20, 20, 13, 133, 134, 136, 104);
 
-            // Flying
-            addMon(pstmt, 13, "Pannykee", "Flying", 60, 16, 12, 24, 121, 122, 123, 124); 
-            addMon(pstmt, 14, "Agilean", "Flying", 65, 19, 10, 22, 121, 122, 107, 124); 
+            // Flying Monsters - Speed/Attack
+            addMon(pstmt, 13, "Pannykee", "Flying", 90, 20, 16, 24, 121, 122, 123, 124);
+            addMon(pstmt, 14, "Agilean", "Flying", 92, 21, 15, 23, 121, 122, 107, 124);
 
-            // Ice
-            addMon(pstmt, 15, "Sorbeetez", "Ice", 70, 18, 12, 14, 125, 126, 127, 128); 
-            addMon(pstmt, 16, "Gimalam", "Ice", 75, 16, 14, 10, 125, 126, 128, 103); 
+            // Ice Monsters - Balanced
+            addMon(pstmt, 15, "Sorbeetez", "Ice", 93, 20, 17, 19, 125, 126, 127, 128);
+            addMon(pstmt, 16, "Gimalam", "Ice", 95, 19, 18, 17, 125, 126, 128, 103);
 
-            // Dark
-            addMon(pstmt, 17, "Alailaw", "Dark", 55, 23, 6, 20, 129, 130, 131, 132); 
-            addMon(pstmt, 18, "Milidam", "Dark", 80, 16, 14, 12, 129, 130, 132, 112); 
+            // Dark Monsters - High Speed/Attack
+            addMon(pstmt, 17, "Alailaw", "Dark", 87, 22, 14, 27, 129, 130, 131, 132);
+            addMon(pstmt, 18, "Milidam", "Dark", 98, 19, 18, 17, 129, 130, 132, 112);
 
             pstmt.executeBatch();
         }
+        
+        System.out.println("✓ Monsters rebalanced for 3-4 hit survival!");
+        System.out.println("✓ Damage formula prevents one-shots!");
+        System.out.println("✓ Game is now strategic and fair!");
     }
     
     private void addAbil(PreparedStatement p, int id, String n, String d, String t) throws SQLException {
