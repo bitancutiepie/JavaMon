@@ -130,10 +130,61 @@ We also acknowledge the Java documentation and open-source resources that helped
 
 ## References
 
-- Pokémon  
-- PokéRogue  
-- Roguelike games  
-- Roguelike floor-based games  
+### Pokémon
+
+- **The Pokémon Company.** Official Pokémon Website.  
+  https://www.pokemon.com/
+
+- **The Pokémon Company.** Official Pokémon Video Games Information.  
+  https://www.pokemon.com/us/pokemon-video-games/all-pokemon-games
+
+- **The Pokémon Company Press Resources.**  
+  Official press releases, brand guidelines, and game mechanic announcements  
+  (Accessed via official Pokémon press portals and public announcements).
+
+---
+
+### PokéRogue
+
+- **PokéRogue Official Website / Play Link.**  
+  https://pokerogue.net/
+
+- **PokéRogue Dex (Fan-Made Database).**  
+  https://dex.playpokerogue.com/
+
+- **PokéRogue Wiki (Community Resource).**  
+  https://wiki.pokerogue.net/start
+
+- **PokéRogue Community Discussions.**  
+  Reddit community discussions and player feedback  
+  (Search term: `r/pokerogue`)
+
+---
+
+### Roguelike & Floor-Based Game Design
+
+- **Wikipedia.** Roguelike.  
+  https://en.wikipedia.org/wiki/Roguelike
+
+- **Berlin Interpretation of Roguelikes.**  
+  Formal definition of core roguelike characteristics including procedural generation, permadeath, and turn-based gameplay.
+
+- **RetroStyle Games.** What Is a Roguelike Game?  
+  Articles discussing the distinction between roguelikes and roguelites, including meta-progression systems.
+
+---
+
+### Comparative Roguelike Games
+
+- **Hades** – Supergiant Games  
+  Action roguelite with strong narrative and meta-progression systems.
+
+- **Slay the Spire** – MegaCrit  
+  Deck-building roguelite featuring multi-floor progression and strategic resource management.
+
+- **The Binding of Isaac** – Edmund McMillen  
+  Action roguelike known for procedural generation and item synergy systems.
+ 
 
 ---
 
